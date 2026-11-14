@@ -1,5 +1,7 @@
-/* Marswalk 3D — collapsible side panels */
-.panel {
+/* Marswalk 3D — collapsible side panels
+   All rules are scoped to the 3D container (.app, see #view3d in index.html) so that
+   generic class names (.panel, .hint, .kv, …) do not restyle the 2D planner. */
+.app .panel {
   position: absolute;
   top: 12px;
   bottom: 12px;
@@ -14,13 +16,13 @@
   transition: transform 0.25s ease;
   display: flex;
 }
-.panel-left { left: 12px; }
-.panel-right { right: 12px; }
+.app .panel-left { left: 12px; }
+.app .panel-right { right: 12px; }
 
-.panel.is-collapsed.panel-left { transform: translateX(calc(-100% - 12px)); }
-.panel.is-collapsed.panel-right { transform: translateX(calc(100% + 12px)); }
+.app .panel.is-collapsed.panel-left { transform: translateX(calc(-100% - 12px)); }
+.app .panel.is-collapsed.panel-right { transform: translateX(calc(100% + 12px)); }
 
-.panel-body {
+.app .panel-body {
   flex: 1 1 auto;
   overflow-y: auto;
   padding: 16px 16px 20px;
@@ -28,7 +30,7 @@
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
-.panel-title {
+.app .panel-title {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -36,7 +38,7 @@
   margin-bottom: 12px;
 }
 
-.panel-toggle {
+.app .panel-toggle {
   position: absolute;
   top: 12px;
   width: 24px;
@@ -47,24 +49,24 @@
   place-items: center;
   padding: 0;
 }
-.panel-left .panel-toggle { right: -25px; border-left: 0; border-radius: 0 8px 8px 0; }
-.panel-right .panel-toggle { left: -25px; border-right: 0; border-radius: 8px 0 0 8px; }
+.app .panel-left .panel-toggle { right: -25px; border-left: 0; border-radius: 0 8px 8px 0; }
+.app .panel-right .panel-toggle { left: -25px; border-right: 0; border-radius: 8px 0 0 8px; }
 
-.chev {
+.app .chev {
   width: 8px; height: 8px;
   border-left: 2px solid var(--text-2);
   border-bottom: 2px solid var(--text-2);
   transition: transform 0.25s;
 }
-.panel-left .chev { transform: rotate(45deg); margin-left: 3px; }
-.panel-right .chev { transform: rotate(-135deg); margin-right: 3px; }
-.panel-left.is-collapsed .chev { transform: rotate(-135deg); margin-left: -3px; }
-.panel-right.is-collapsed .chev { transform: rotate(45deg); margin-right: -3px; }
+.app .panel-left .chev { transform: rotate(45deg); margin-left: 3px; }
+.app .panel-right .chev { transform: rotate(-135deg); margin-right: 3px; }
+.app .panel-left.is-collapsed .chev { transform: rotate(-135deg); margin-left: -3px; }
+.app .panel-right.is-collapsed .chev { transform: rotate(45deg); margin-right: -3px; }
 
 /* ---------- layer list ---------- */
-.layer-group { padding: 10px 0 12px; border-top: 1px solid var(--panel-border); }
-.layer-group:first-of-type { border-top: 0; padding-top: 0; }
-.layer-group h3 {
+.app .layer-group { padding: 10px 0 12px; border-top: 1px solid var(--panel-border); }
+.app .layer-group:first-of-type { border-top: 0; padding-top: 0; }
+.app .layer-group h3 {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -72,7 +74,7 @@
   margin-bottom: 8px;
 }
 
-.layer-row {
+.app .layer-row {
   display: flex;
   gap: 10px;
   align-items: flex-start;
@@ -81,51 +83,51 @@
   border-radius: 8px;
   cursor: pointer;
 }
-.layer-row:hover { background: rgba(255, 255, 255, 0.04); }
-.layer-row input { margin: 3px 0 0; accent-color: var(--accent-2); flex: 0 0 auto; }
-.layer-row span { display: flex; flex-direction: column; min-width: 0; }
-.layer-row b { font-weight: 500; font-size: 13px; }
-.layer-row small { color: var(--text-3); }
-.layer-row.is-unavailable { opacity: 0.45; cursor: not-allowed; }
-.layer-row.is-unavailable small::after { content: " · unavailable"; color: var(--err); }
+.app .layer-row:hover { background: rgba(255, 255, 255, 0.04); }
+.app .layer-row input { margin: 3px 0 0; accent-color: var(--accent-2); flex: 0 0 auto; }
+.app .layer-row span { display: flex; flex-direction: column; min-width: 0; }
+.app .layer-row b { font-weight: 500; font-size: 13px; }
+.app .layer-row small { color: var(--text-3); }
+.app .layer-row.is-unavailable { opacity: 0.45; cursor: not-allowed; }
+.app .layer-row.is-unavailable small::after { content: " · unavailable"; color: var(--err); }
 
-.hint { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
+.app .hint { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
 
 /* ---------- info panel ---------- */
-.info-block { padding: 10px 0 12px; border-top: 1px solid var(--panel-border); }
-.info-block:first-of-type { border-top: 0; padding-top: 0; }
-.info-block h3 {
+.app .info-block { padding: 10px 0 12px; border-top: 1px solid var(--panel-border); }
+.app .info-block:first-of-type { border-top: 0; padding-top: 0; }
+.app .info-block h3 {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--accent);
   margin-bottom: 6px;
 }
-.info-block h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.app .info-block h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
 
-.region-name { margin: 0; font-size: 18px; font-weight: 600; color: var(--accent-2); }
-.info-block p { margin: 2px 0 0; }
+.app .region-name { margin: 0; font-size: 18px; font-weight: 600; color: var(--accent-2); }
+.app .info-block p { margin: 2px 0 0; }
 
-.kv {
+.app .kv {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 4px 12px;
   margin: 0;
 }
-.kv dt { color: var(--text-3); font-size: 12px; }
-.kv dd { margin: 0; text-align: right; font-family: var(--mono); font-size: 12.5px; }
+.app .kv dt { color: var(--text-3); font-size: 12px; }
+.app .kv dd { margin: 0; text-align: right; font-family: var(--mono); font-size: 12.5px; }
 
-.sources { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.sources li {
+.app .sources { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.app .sources li {
   border-left: 2px solid var(--accent);
   padding: 2px 0 2px 8px;
   font-size: 12.5px;
 }
-.sources li.is-local { border-left-color: var(--accent-2); }
-.sources li b { display: block; font-weight: 500; }
-.sources li span { color: var(--text-3); font-size: 11.5px; }
+.app .sources li.is-local { border-left-color: var(--accent-2); }
+.app .sources li b { display: block; font-weight: 500; }
+.app .sources li span { color: var(--text-3); font-size: 11.5px; }
 
-.fineprint { margin: 14px 0 0; font-size: 11.5px; color: var(--text-3); }
+.app .fineprint { margin: 14px 0 0; font-size: 11.5px; color: var(--text-3); }
 
 @media (max-width: 760px) {
   :root { --panel-w: 270px; }
