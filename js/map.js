@@ -42,7 +42,7 @@ function apiBase() {
   return apiBasePromise;
 }
 const MARS_R = 3396190;               // metres, used ONLY for the on-screen scale bar
-const SLOPE_CAUTION = 8;              // display band (degrees); match backend config
+const SLOPE_CAUTION = 10;             // display band (degrees); same caution slope as the backend overlays and routes
 
 const AppState = {
   layers: null,        // /api/layers response
@@ -135,7 +135,28 @@ map.createPane("nasaBase").style.zIndex = 150;     // under backend image overla
 map.createPane("nasaOver").style.zIndex = 250;
 const routeLayers = { A: L.layerGroup().addTo(map), B: L.layerGroup().addTo(map) };
 
-map.on("mousemove", e => { $("coords").textContent = fmtLL(e.latlng.lat, e.latlng.lng) + " (planetocentric, E+)"; });
+/* Cursor readout: x = longitude (east-positive), y = latitude (planetocentric), z = elevation from the DEM.
+   z is fetched from the backend once the mouse rests for a moment (no request storm while panning). */
+let zTimer = 0, zSeq = 0;
+function showCursor(lat, lon, zText) {
+  $("coords").innerHTML = `<span class="xyz"><b>x</b> ${lon.toFixed(5)}°E</span><span class="xyz"><b>y</b> ${lat.toFixed(5)}°N</span>` +
+    `<span class="xyz"><b>z</b> ${zText}</span>`;
+}
+map.on("mousemove", e => {
+  const { lat, lng } = e.latlng, seq = ++zSeq;
+  showCursor(lat, lng, "…");
+  clearTimeout(zTimer);
+  zTimer = setTimeout(async () => {
+    try {
+      const r = await api(`/api/elevation?lat=${lat.toFixed(6)}&lon=${lng.toFixed(6)}`);
+      if (seq !== zSeq) return;                                   // mouse moved on: drop the stale answer
+      const src = String(r.source_dataset || "").replace(/ mosaic.*?@/, " @").replace("Mars 2020 ", "");
+      showCursor(lat, lng, r.elevation_m == null ? "no DEM data" :
+        `${Math.round(r.elevation_m).toLocaleString()} m <small>slope ${r.slope_deg ?? "?"}° · ${esc(src)}</small>`);
+    } catch { if (seq === zSeq) showCursor(lat, lng, "backend offline"); }
+  }, 220);
+});
+map.on("mouseout", () => { clearTimeout(zTimer); zSeq++; });
 
 /* NASA tile layers: one Leaflet tile layer per product, each limited to its own
    footprint and native zoom (Leaflet up-samples beyond it instead of 404s). */
@@ -456,17 +477,36 @@ $("btnDraw").onclick = () => (drawing ? finishDrawing() : startDrawing());
 map.on("click", ev => { if (drawing) addWaypoint(ev.latlng); });
 map.on("dblclick", () => { if (drawing) finishDrawing(); });
 
-/* Draws a route coloured by slope, using the backend profile */
+/* Draws a route coloured by slope, using the backend profile:
+   dark casing for contrast on bright imagery, one polyline per run of the same slope class,
+   start/end markers and a summary tooltip. */
+const ROUTE_STYLE = { A: { base: "#E6EAF0", weight: 4, dash: "10 8", name: "Route A · hand" },
+                      B: { base: "#5EC8F2", weight: 6, dash: null, name: "Route B · auto" } };
+const slopeColor = (s, base) => s == null ? "#9AA6B6" : s > AppState.maxSlope ? "#F97316" : s > SLOPE_CAUTION ? "#F2C14E" : base;
+
 function drawRoute(id, analysis) {
   const g = routeLayers[id];
   g.clearLayers();
-  const prof = analysis.profile;
+  const prof = (analysis.profile || []).filter(p => p.lat != null && p.lon != null);
+  if (prof.length < 2) return;
+  const st = ROUTE_STYLE[id];
+  const pts = prof.map(p => [p.lat, p.lon]);
+  const tip = `<b>${st.name}</b><br>${fmtKm(analysis.distance_m)} · max slope ${analysis.max_slope_deg ?? "?"}°` +
+    ` · ↑${analysis.elevation_gain_m ?? "?"} m ↓${analysis.elevation_loss_m ?? "?"} m`;
+  L.polyline(pts, { color: "#0B0E13", weight: st.weight + 5, opacity: 0.65, lineCap: "round", lineJoin: "round", interactive: false }).addTo(g);
+  let start = 0;
   for (let i = 1; i < prof.length; i++) {
-    const s = prof[i].slope_deg;
-    const color = s == null ? "#9AA6B6" : s > AppState.maxSlope ? "#F97316" : s > SLOPE_CAUTION ? "#F2C14E" : (id === "B" ? "#5EC8F2" : "#C9D2DD");
-    L.polyline([[prof[i - 1].lat, prof[i - 1].lon], [prof[i].lat, prof[i].lon]],
-      { color, weight: id === "B" ? 5 : 3, dashArray: id === "A" ? "8 6" : null }).addTo(g);
+    const c = slopeColor(prof[i].slope_deg, st.base);
+    const next = i + 1 < prof.length ? slopeColor(prof[i + 1].slope_deg, st.base) : null;
+    if (c !== next) {
+      L.polyline(pts.slice(start, i + 1), { color: c, weight: st.weight, dashArray: st.dash, lineCap: "round", lineJoin: "round" })
+        .bindTooltip(tip, { sticky: true }).addTo(g);
+      start = i;
+    }
   }
+  [[pts[0], "Start"], [pts.at(-1), "End"]].forEach(([ll, label]) =>
+    L.circleMarker(ll, { radius: 6, color: st.base, weight: 3, fillColor: "#0B0E13", fillOpacity: 1 })
+      .bindTooltip(`${st.name} · ${label}`).addTo(g));
 }
 
 function routeNotifications(r, name) {
@@ -507,20 +547,42 @@ onState(["maxSlope"], s => {                       // recolour existing routes w
 });
 
 /* ---------- 10. Profile, comparison, EVA bar ---------- */
+/* Elevation profile: height (metres above the Mars areoid) against distance along each route.
+   The line is coloured by slope like the map; hovering a point marks the same spot on the map. */
 let chart = null;
-onState(["routeA", "routeB"], s => {
+const profileMarker = L.circleMarker([0, 0], { radius: 7, color: "#fff", weight: 3, fillColor: "#5EC8F2", fillOpacity: 1, interactive: false });
+const profilePoints = r => r.profile.map(p => ({ x: p.dist_m / 1000, y: p.elevation_m, s: p.slope_deg, lat: p.lat, lon: p.lon }));
+onState(["routeA", "routeB", "maxSlope"], s => {
   const ds = [];
-  if (s.routeB) ds.push({ label: "B · auto", data: s.routeB.profile.map(p => ({ x: p.dist_m / 1000, y: p.elevation_m })), borderColor: "#5EC8F2" });
-  if (s.routeA) ds.push({ label: "A · hand", data: s.routeA.profile.map(p => ({ x: p.dist_m / 1000, y: p.elevation_m })), borderColor: "#C9D2DD", borderDash: [6, 4] });
-  ds.forEach(d => Object.assign(d, { pointRadius: 0, borderWidth: 2, spanGaps: false }));
+  const seg = base => ({ borderColor: c => slopeColor(c.p1.raw && c.p1.raw.s, base) });
+  if (s.routeB) ds.push({ label: "Route B · auto", data: profilePoints(s.routeB), borderColor: "#5EC8F2", segment: seg("#5EC8F2"),
+    borderWidth: 2.5, fill: "start", backgroundColor: "rgba(94,200,242,0.10)" });
+  if (s.routeA) ds.push({ label: "Route A · hand", data: profilePoints(s.routeA), borderColor: "#E6EAF0", segment: seg("#E6EAF0"),
+    borderWidth: 2, borderDash: [6, 4], fill: false });
+  ds.forEach(d => Object.assign(d, { pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: "#fff", spanGaps: false, tension: 0.15 }));
+  $("profileEmpty").hidden = ds.length > 0;
   if (!chart) {
+    const axis = (text) => ({ title: { display: true, text, color: "#9AA6B6", font: { size: 11 } },
+                              ticks: { color: "#9AA6B6", font: { size: 11 }, maxTicksLimit: 7 }, grid: { color: "rgba(255,255,255,0.06)" }, border: { display: false } });
     chart = new Chart($("profile"), { type: "line", data: { datasets: ds },
-      options: { animation: false, parsing: true, plugins: { legend: { labels: { color: "#C2CBD6" } } },
-        scales: { x: { type: "linear", title: { display: true, text: "distance (km)", color: "#9AA6B6" }, ticks: { color: "#9AA6B6" }, grid: { color: "#1E2631" } },
-                  y: { title: { display: true, text: "elevation (m)", color: "#9AA6B6" }, ticks: { color: "#9AA6B6" }, grid: { color: "#1E2631" } } } } });
+      options: { animation: false, parsing: { xAxisKey: "x", yAxisKey: "y" }, maintainAspectRatio: false,
+        interaction: { mode: "nearest", intersect: false, axis: "x" },
+        plugins: {
+          legend: { labels: { color: "#C2CBD6", boxWidth: 14, boxHeight: 3, font: { size: 11 } } },
+          tooltip: { backgroundColor: "rgba(11,14,19,0.95)", borderColor: "#2E3A49", borderWidth: 1, padding: 8,
+            callbacks: { title: it => `${it[0].raw.x.toFixed(2)} km along the route`,
+                         label: it => `${it.dataset.label}: ${it.raw.y == null ? "no data" : Math.round(it.raw.y).toLocaleString() + " m"}` +
+                                      (it.raw.s != null ? ` · slope ${it.raw.s}°` : "") } },
+        },
+        onHover: (evt, els) => {
+          const raw = els.length && chart.data.datasets[els[0].datasetIndex].data[els[0].index];
+          if (raw && raw.lat != null) { profileMarker.setLatLng([raw.lat, raw.lon]).addTo(map); } else map.removeLayer(profileMarker);
+        },
+        scales: { x: { type: "linear", ...axis("distance along the route (km)") }, y: axis("elevation (m, Mars areoid)") } } });
+    $("profile").addEventListener("mouseleave", () => map.removeLayer(profileMarker));
   } else { chart.data.datasets = ds; chart.update(); }
   const r = s.routeB || s.routeA;
-  $("method").textContent = r ? `${r.method} · ${r.source_dataset}` : "";
+  $("method").textContent = r ? `Data: ${r.source_dataset}` : "";
 });
 
 onState(["routeA", "routeB"], s => {

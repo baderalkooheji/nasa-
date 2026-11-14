@@ -116,21 +116,27 @@
         <div id="map" role="application" aria-label="Map of Jezero crater"></div>
         <div id="dataBanner" class="map-badge top-left" hidden></div>
         <div class="map-badge bottom-right mono">
-          <div id="coords">Move the mouse over the map</div>
+          <div id="coords" class="coords">Move the mouse over the map: x / y / z</div>
           <div id="scale"></div>
         </div>
         <div class="map-badge bottom-left legend" id="routeLegend">
           <span><i class="sw" style="background:#5EC8F2"></i>Route B · auto</span>
           <span><i class="sw dash"></i>Route A · hand</span>
-          <span><i class="sw" style="background:#F2C14E"></i>8–15°</span>
-          <span><i class="sw" style="background:#F97316"></i>> limit</span>
+          <span><i class="sw" style="background:#F2C14E"></i>10° – limit</span>
+          <span><i class="sw" style="background:#F97316"></i>&gt; limit</span>
         </div>
       </div>
 
       <section class="panel" aria-label="Route analysis">
         <div class="col">
-          <h3>Elevation profile</h3>
-          <canvas id="profile" height="140"></canvas>
+          <h3>Elevation profile <small class="muted">height along the route</small></h3>
+          <div class="profile-wrap">
+            <canvas id="profile"></canvas>
+            <div id="profileEmpty" class="profile-empty">
+              <b>No route yet.</b> Run <i>Auto-route around hazards</i> or draw a route in the <i>Route</i> tab:
+              this chart then shows how the ground rises and falls along it, coloured by slope. Hover the line to find the spot on the map.
+            </div>
+          </div>
           <small id="method" class="muted"></small>
         </div>
         <div class="col">

@@ -34,6 +34,39 @@ body { display: flex; flex-direction: column; }
 .viewport-3d .app .topbar .brand { display: none; }      /* the page header already says MARSWALK */
 .viewport-3d .app .topbar { grid-template-columns: 1fr auto 1fr; }
 
+/* ---------- map overlays: attribution on one line, badges above it, x/y/z readout ---------- */
+.map-wrap .leaflet-control-attribution {
+  max-width: 46%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: rgba(11, 14, 19, .72); color: #8B97A8; font-size: 10.5px; line-height: 1.7; padding: 0 8px; border-radius: 6px 0 0 0;
+}
+.map-wrap .leaflet-control-attribution:hover { white-space: normal; max-width: 80%; }
+.map-wrap .leaflet-control-attribution a { color: #7CC4FF; }
+.map-badge { background: rgba(11, 14, 19, .86); border: 1px solid rgba(255, 255, 255, .08); backdrop-filter: blur(6px); box-shadow: 0 4px 16px rgba(0, 0, 0, .35); }
+.map-badge.bottom-right { bottom: 28px; right: 10px; max-width: 54%; }
+.map-badge.bottom-left { bottom: 28px; left: 10px; max-width: 44%; }
+.legend { gap: 6px 12px; font-size: 11.5px; }
+.coords { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: flex-end; font-variant-numeric: tabular-nums; }
+.coords .xyz b { color: #5EC8F2; margin-right: 4px; }
+.coords small { color: #9AA6B6; margin-left: 6px; font-size: 11px; }
+#scale { color: #9AA6B6; margin-top: 3px; }
+.leaflet-tooltip { background: #0F141B; color: #E6EAF0; border: 1px solid #2E3A49; box-shadow: 0 4px 14px rgba(0, 0, 0, .4); }
+.leaflet-tooltip-top::before { border-top-color: #2E3A49; }
+
+/* ---------- analysis panel under the map ---------- */
+.viewport-2d .panel { gap: 14px; padding: 14px 16px; border-top: 1px solid var(--line); }
+.viewport-2d .panel .col { background: #121821; border: 1px solid #1E2631; border-radius: 10px; padding: 12px 14px; }
+.viewport-2d .panel h3 { font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: #C2CBD6; display: flex; gap: 8px; align-items: baseline; }
+.viewport-2d .panel h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.profile-wrap { position: relative; height: 210px; }
+.profile-empty {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 12px 28px; color: #9AA6B6; font-size: 12.5px; line-height: 1.6;
+  border: 1px dashed #2E3A49; border-radius: 8px; background: rgba(255, 255, 255, .02);
+}
+#method { display: block; margin-top: 6px; }
+#compare th, #compare td { font-size: 12.5px; }
+.evabar { border: 1px solid #1E2631; }
+
 /* ---------- narrow screens: stack the columns and scroll the page ---------- */
 @media (max-width: 900px) {
   html, body { overflow: auto; height: auto; }

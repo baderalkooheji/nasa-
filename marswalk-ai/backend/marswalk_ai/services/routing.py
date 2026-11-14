@@ -77,15 +77,68 @@ def _shortest_path(cost: np.ndarray, win: TerrainWindow, start_rc, end_rc) -> li
     return path[::-1]
 
 
+def _line_cells(a: tuple[int, int], b: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+    """Grid cells on the straight segment a→b (8-connected, both ends included)."""
+    n = max(abs(b[0] - a[0]), abs(b[1] - a[1]))
+    if n == 0:
+        return np.array([a[0]]), np.array([a[1]])
+    return (np.rint(np.linspace(a[0], b[0], n + 1)).astype(int), np.rint(np.linspace(a[1], b[1], n + 1)).astype(int))
+
+
+def smooth_path(path: list[tuple[int, int]], slope: np.ndarray, max_slope: float, max_look: int = 120):
+    """Any-angle smoothing ("string pulling") of an 8-connected grid path.
+
+    Returns (cells, positions): the grid cells crossed (for sampling elevation/slope) and the exact
+    fractional row/col positions along the straight segments (for distances and the drawn line).
+
+    From each anchor, jump to the farthest later path cell that can be reached in a straight line where every
+    crossed cell has data, stays within the slope limit and is no steeper than the steepest cell of the grid
+    path it replaces. Removes the staircase pattern of grid routes without making them steeper.
+    """
+    if len(path) < 3:
+        return path, [(float(r), float(c)) for r, c in path]
+    rr = np.array([p[0] for p in path]); cc = np.array([p[1] for p in path])
+    s = np.where(np.isfinite(slope), slope, np.inf)
+    along = s[rr, cc].copy()
+    along[0] = along[-1] = -np.inf                         # fixed endpoints never limit the comparison
+    anchors, i, n = [0], 0, len(path)
+    while i < n - 1:
+        j = min(n - 1, i + max_look)
+        while j > i + 1:
+            lr, lc = _line_cells(path[i], path[j])
+            inner = s[lr[1:-1], lc[1:-1]]
+            if inner.size == 0 or (np.all(inner <= max_slope) and inner.max() <= max(along[i:j + 1].max(), 0) + 0.25):
+                break
+            j -= 1
+        anchors.append(j)
+        i = j
+    out, fpos = [path[0]], [(float(path[0][0]), float(path[0][1]))]
+    for a, b in zip(anchors[:-1], anchors[1:]):
+        lr, lc = _line_cells(path[a], path[b])
+        k = len(lr) - 1
+        out += list(zip(lr[1:].tolist(), lc[1:].tolist()))
+        # exact positions on the straight segment (for true distances and a straight drawn line)
+        fpos += [(path[a][0] + (path[b][0] - path[a][0]) * t / k, path[a][1] + (path[b][1] - path[a][1]) * t / k) for t in range(1, k + 1)]
+    return out, fpos
+
+
 def evaluate_cells(win: TerrainWindow, slope: np.ndarray, cells: list[tuple[int, int]], max_slope: float,
-                   caution: float, k_suit: float, cost_ref_slope: float | None = None) -> dict:
+                   caution: float, k_suit: float, cost_ref_slope: float | None = None,
+                   positions: list[tuple[float, float]] | None = None) -> dict:
     """Metrics for a path given as grid cells. Every value is computed from the grid.
 
+    `positions` (optional, same length as cells) are exact fractional row/col positions, used for distances and
+    for the drawn geometry; elevation and slope are always sampled from the cells.
     weighted_cost always uses the same reference slope (the project default limit), so routes planned
     with different limits remain comparable."""
     ref = cost_ref_slope or max_slope
     rr = np.array([c[0] for c in cells]); cc = np.array([c[1] for c in cells])
-    lat, lon = win.lats[rr], win.lons[cc]
+    if positions is not None and len(positions) == len(cells):
+        fr = np.array([p[0] for p in positions]); fc = np.array([p[1] for p in positions])
+    else:
+        fr, fc = rr.astype(float), cc.astype(float)
+    idx = np.arange(len(win.lats))
+    lat, lon = np.interp(fr, idx, win.lats), np.interp(fc, np.arange(len(win.lons)), win.lons)
     z = win.elev[rr, cc]
     s_all = slope[rr, cc]
     # The start and destination cells are fixed by the mission (e.g. a stop on a scarp), so the slope
@@ -93,7 +146,7 @@ def evaluate_cells(win: TerrainWindow, slope: np.ndarray, cells: list[tuple[int,
     s = s_all.copy()
     if len(s) > 2:
         s[0] = s[-1] = np.nan
-    ds = np.sqrt(((np.diff(rr)) * win.dy_m) ** 2 + ((np.diff(cc)) * win.dx_m[rr[:-1]]) ** 2)
+    ds = np.sqrt(((np.diff(fr)) * win.dy_m) ** 2 + ((np.diff(fc)) * win.dx_m[rr[:-1]]) ** 2)
     dz = np.diff(z)
     grade = np.degrees(np.arctan2(dz, np.maximum(ds, 1e-6)))
     seg_slope = np.fmax(s[:-1], s[1:])
@@ -206,7 +259,8 @@ class RoutePlanner:
                 if routes and _overlap(path, routes) > 0.85:    # near-duplicate: push the next search away from it
                     path = _shortest_path(base * _corridor_penalty(penalty, path, 4, 2.5), win, sr, er) or path
                 penalty = _corridor_penalty(penalty, path, 3, 1.6)
-                ev = evaluate_cells(win, slope, path, max_slope, caution, self.k_suit, self.cost_ref_slope)
+                path, fpos = smooth_path(path, slope, max_slope)  # straighten the grid staircase
+                ev = evaluate_cells(win, slope, path, max_slope, caution, self.k_suit, self.cost_ref_slope, positions=fpos)
                 ev.update({"objective": obj, "label": label, "_cells": path})
                 routes.append(ev)
             if routes:
