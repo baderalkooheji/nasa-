@@ -154,7 +154,11 @@
   });
 
   const assistant = MarswalkAssistant.mount({ apiBase: API, bridge });
+  // One AI entry point: the Marswalk AI orb. The old top-bar button and its drawer are hidden while the
+  // assistant is active (they remain the fallback when the assistant server is not running).
   const btn = document.getElementById("btnChat");
-  if (btn) btn.onclick = () => assistant.toggle(true);       // replace the old drawer with the new panel
+  if (btn) { btn.classList.add("mwai-replaced"); btn.onclick = () => assistant.toggle(true); }
+  const oldDrawer = document.getElementById("chat");
+  if (oldDrawer) oldDrawer.hidden = true;
   window.marswalkAI = { assistant, bridge };
 })();

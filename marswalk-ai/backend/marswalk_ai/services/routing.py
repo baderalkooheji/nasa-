@@ -130,9 +130,11 @@ def evaluate_cells(win: TerrainWindow, slope: np.ndarray, cells: list[tuple[int,
     return {
         "geometry": [[round(float(a), 6), round(float(b), 6)] for a, b in zip(lat, lon)],
         "slope_classes": [cls(v) for v in seg_slope],
-        "profile": [{"d_m": round(float(d), 1), "elev_m": None if not np.isfinite(e) else round(float(e), 1),
-                     "slope_deg": None if not np.isfinite(sl) else round(float(sl), 1)}
-                    for d, e, sl in zip(cum[:: max(1, len(cum) // 120)], z[:: max(1, len(cum) // 120)], s[:: max(1, len(cum) // 120)])],
+        # profile: at most ~400 samples, always including the last point; lat/lon let clients draw it directly
+        "profile": [{"lat": round(float(lat[i]), 6), "lon": round(float(lon[i]), 6), "d_m": round(float(cum[i]), 1),
+                     "elev_m": None if not np.isfinite(z[i]) else round(float(z[i]), 1),
+                     "slope_deg": None if not np.isfinite(s_all[i]) else round(float(s_all[i]), 1)}
+                    for i in sorted(set(range(0, len(cum), max(1, len(cum) // 400))) | {len(cum) - 1})],
         "metrics": {
             "distance_m": round(dist, 0),
             "straight_line_m": round(ground_distance_m(lat[0], lon[0], lat[-1], lon[-1]), 0),

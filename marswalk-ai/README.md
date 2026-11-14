@@ -36,6 +36,16 @@ Open <http://127.0.0.1:8090/> for the demo environment (mock Marswalk map plus a
 
 With no API key the assistant runs in **offline rule-based mode**: intent recognition and replies are deterministic and use the same tools. Add `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` or an OpenAI-compatible endpoint in `.env` to enable the LLM orchestrator.
 
+### Run the full Marswalk app (2D planner + 3D globe + assistant)
+
+The original 2D planner needs its `/api/*` backend, which lives in `backend/marswalk_api/` (see [MARSWALK_BACKEND.md](MARSWALK_BACKEND.md)):
+
+```bash
+.venv\Scripts\python -m uvicorn marswalk_api.main:app --app-dir backend --port 8085
+```
+
+Then open <http://127.0.0.1:8085/>. Keep the assistant (port 8090) running too for the AI panel.
+
 ## What is real and what is mock
 
 | Part | Status in the standalone build |
@@ -54,7 +64,7 @@ With no API key the assistant runs in **offline rule-based mode**: intent recogn
 .venv\Scripts\python -m pytest
 ```
 
-There are 34 tests. They cover the 14 required astronaut requests and their follow-ups, invented-number detection, schema and permission enforcement, confirmations, LLM tool loops and provider wire formats (Gemini, Anthropic, OpenAI), LLM and backend failure handling, the Science Engine and Marswalk adapters against fake servers, the HTTP API, the legacy `/api/chat` contract, and a real-DEM check (DTM elevation within 2 m of the rover-measured value).
+There are 45 tests. They cover the Marswalk backend's `/api/*` contract (10 tests), the mission-log planning request, and the 14 required astronaut requests and their follow-ups, invented-number detection, schema and permission enforcement, confirmations, LLM tool loops and provider wire formats (Gemini, Anthropic, OpenAI), LLM and backend failure handling, the Science Engine and Marswalk adapters against fake servers, the HTTP API, the legacy `/api/chat` contract, and a real-DEM check (DTM elevation within 2 m of the rover-measured value).
 
 ## Layout
 

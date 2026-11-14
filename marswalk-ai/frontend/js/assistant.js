@@ -45,7 +45,7 @@
           <span class="mwai-orb-core"></span><span class="mwai-orb-ring"></span>
         </button>
         <section class="mwai-panel" role="dialog" aria-label="Marswalk AI assistant" hidden>
-          <header class="mwai-head">
+          <header class="mwai-head" title="Drag to move · double-click to reset position">
             <div class="mwai-title"><span class="mwai-dot" aria-hidden="true"></span><b>${esc(title)}</b>
               <span class="mwai-sub" data-ref="status">connecting…</span></div>
             <div class="mwai-head-btns">
@@ -71,10 +71,59 @@
       $("sources").onclick = () => { this.ui.sourcebar.hidden = !this.ui.sourcebar.hidden; };
       this.ui.form.onsubmit = (e) => { e.preventDefault(); const q = this.ui.input.value.trim(); if (q) { this.ui.input.value = ""; this.ask(q); } };
       document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.ui.panel.hidden) this.toggle(false); });
+      this._initDrag(root.querySelector(".mwai-panel"), root.querySelector(".mwai-head"));
       return root;
     }
 
+    // ------------------------------------------------------------------ move / resize
+    _initDrag(panel, head) {
+      const KEY = "mwai-panel-geometry";
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch { return null; } };
+      const save = () => {
+        if (panel.hidden) return;
+        const r = panel.getBoundingClientRect();
+        try { localStorage.setItem(KEY, JSON.stringify({ x: r.left, y: r.top, w: r.width, h: r.height })); } catch { /* storage unavailable */ }
+      };
+      const fit = () => {                                   // keep the panel fully on screen
+        const r = panel.getBoundingClientRect();
+        const w = Math.min(r.width, innerWidth - 16), h = Math.min(r.height, innerHeight - 16);
+        Object.assign(panel.style, { width: w + "px", height: h + "px",
+          left: clamp(r.left, 8, innerWidth - w - 8) + "px", top: clamp(r.top, 8, innerHeight - h - 8) + "px" });
+      };
+      this._place = (reset) => {
+        const g = reset ? null : load();
+        const w = Math.min(g ? g.w : 420, innerWidth - 16);
+        const h = Math.min(g ? g.h : Math.min(620, innerHeight * 0.72), innerHeight - 16);
+        Object.assign(panel.style, { width: w + "px", height: h + "px",
+          left: clamp(g ? g.x : innerWidth - w - 20, 8, innerWidth - w - 8) + "px",
+          top: clamp(g ? g.y : innerHeight - h - 20, 8, innerHeight - h - 8) + "px" });
+      };
+      let drag = null;
+      head.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0 || e.target.closest("button")) return;
+        const r = panel.getBoundingClientRect();
+        drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+        head.setPointerCapture(e.pointerId);
+        panel.classList.add("mwai-dragging");
+      });
+      head.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        const r = panel.getBoundingClientRect();
+        panel.style.left = clamp(e.clientX - drag.dx, 8, innerWidth - r.width - 8) + "px";
+        panel.style.top = clamp(e.clientY - drag.dy, 8, innerHeight - r.height - 8) + "px";
+      });
+      const end = () => { if (drag) { drag = null; panel.classList.remove("mwai-dragging"); save(); } };
+      head.addEventListener("pointerup", end);
+      head.addEventListener("pointercancel", end);
+      head.addEventListener("dblclick", (e) => { if (!e.target.closest("button")) { this._place(true); save(); } });
+      let t = 0;
+      if (window.ResizeObserver) new ResizeObserver(() => { clearTimeout(t); t = setTimeout(save, 300); }).observe(panel);
+      addEventListener("resize", () => { if (!panel.hidden) fit(); });
+    }
+
     toggle(open) {
+      if (open && this.ui.panel.hidden) this._place();
       this.ui.panel.hidden = !open;
       this.ui.orb.setAttribute("aria-expanded", String(open));
       this.root.classList.toggle("mwai-open", open);

@@ -215,10 +215,17 @@ def register(registry: CapabilityRegistry, services, endpoints: list[str]) -> No
 
         async def save(args, ctx):
             sel = ctx.session.client_context.get("selected") or {}
-            body = {"label": args["label"], "lat": sel.get("lat"), "lon": sel.get("lon"),
-                    "analysis_type": "route" if args.get("route_id") else "location", "result": args.get("note", ""),
-                    "elevation_m": sel.get("elevation_m"), "slope_deg": sel.get("slope_deg"), "dataset": sel.get("source_dataset"),
-                    "status": "complete"}
+            route = ctx.session.routes.get(args.get("route_id") or "")
+            if route:      # a route plan is logged at its destination
+                dest = route["destination"]
+                body = {"label": args["label"], "lat": dest.get("lat"), "lon": dest.get("lon"), "analysis_type": "route",
+                        "result": args.get("note", ""), "elevation_m": route["metrics"].get("elevation_end_m"),
+                        "slope_deg": route["metrics"].get("max_slope_deg"),
+                        "dataset": (route["provenance"].get("dataset") or {}).get("name"), "status": "planned"}
+            else:
+                body = {"label": args["label"], "lat": sel.get("lat"), "lon": sel.get("lon"), "analysis_type": "location",
+                        "result": args.get("note", ""), "elevation_m": sel.get("elevation_m"), "slope_deg": sel.get("slope_deg"),
+                        "dataset": sel.get("source_dataset"), "status": "complete"}
             await client.call("POST", "/api/records", body)
             return CapResult({"saved": True, "record": body}, limitations=[UNVERIFIED])
         registry.register(Capability(

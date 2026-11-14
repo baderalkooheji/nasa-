@@ -101,8 +101,9 @@ class TurnRecorder:
         return action
 
     def request_confirmation(self, cap, args: dict) -> dict:
+        what = f"“{args['label']}”" if isinstance(args.get("label"), str) else json.dumps(args, ensure_ascii=False)[:200]
         pending = {"confirmation_id": f"cnf-{uuid.uuid4().hex[:10]}", "capability_id": cap.id, "arguments": args,
-                   "summary": f"{cap.name}: {json.dumps(args)[:200]}", "created_at": time.time()}
+                   "summary": f"{cap.name}: {what}", "created_at": time.time()}
         self.session.pending_confirmations[pending["confirmation_id"]] = pending
         self.confirmations.append(pending)
         return pending

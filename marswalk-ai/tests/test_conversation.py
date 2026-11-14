@@ -218,6 +218,25 @@ def test_real_marswalk_sections_do_not_hijack_route_requests():
     run(go())
 
 
+def test_mission_log_plan_from_point_to_point():
+    """The request from the user's screenshot: plan + estimates + log entry, saved only after confirmation."""
+    async def go():
+        async with Env() as env:
+            s = env.session()
+            r = await env.ask(s, "write for me a mission log to go from point 1 to point 3")
+            assert r["intent"]["name"] == "mission_log_plan" and r["status"] == "needs_confirmation"
+            g = next(x for x in r["tool_results"] if x["capability_id"] == "route.generate")
+            assert g["arguments"]["start"] == "stop-1" and g["arguments"]["destination"] == "stop-3"
+            assert r["message"].startswith("MISSION LOG") and "Timeline:" in r["message"] and "Gale" in r["message"]
+            assert "display_route" in action_types(r)
+            assert not ungrounded(r, env.settings)
+            assert env.services.store.list_records() == []
+            await env.orch.confirm(s, r["pending_confirmations"][0]["confirmation_id"], True)
+            rec = env.services.store.list_records()[0]
+            assert rec["label"].startswith("EVA plan") and "MISSION LOG" in rec["note"]
+    run(go())
+
+
 def test_save_requires_confirmation():
     async def go():
         async with Env() as env:

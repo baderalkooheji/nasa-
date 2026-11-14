@@ -33,10 +33,10 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
 
     aliases = {
-        "H": ["habitat", "base", "home", "camp", "start", "sample depot", "three forks"],
-        "1": ["delta", "the delta", "delta front", "hawksbill gap", "stop 1", "first stop"],
-        "2": ["upper delta-front ridge", "upper delta front ridge", "ridge", "stop 2", "second stop"],
-        "3": ["crater floor", "crater floor east of the depot", "stop 3", "third stop"],
+        "H": ["habitat", "base", "home", "camp", "start", "sample depot", "three forks", "point h", "stop h"],
+        "1": ["delta", "the delta", "delta front", "hawksbill gap", "stop 1", "first stop", "point 1", "point one", "stop one"],
+        "2": ["upper delta-front ridge", "upper delta front ridge", "ridge", "stop 2", "second stop", "point 2", "point two", "stop two"],
+        "3": ["crater floor", "crater floor east of the depot", "stop 3", "third stop", "point 3", "point three", "stop three"],
     }
 
     def poi(src, kind):

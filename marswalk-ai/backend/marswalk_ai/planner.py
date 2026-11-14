@@ -159,6 +159,9 @@ class RulePlanner:
             return I("terrain_analyze", 0.85)
         if _has(t, r"investigate next|what next|what's next|where (should|do) (i|we) go|next stop|should (i|we) (investigate|visit|explore|do)"):
             return I("next_target", 0.8)
+        if (s.get("destination") or "start" in s) and _has(
+                t, r"\b(write|create|make|draft|prepare|generate|produce|give me|log)\b.*\b(mission log|log entry|log|mission plan|eva plan|plan|briefing|report)\b"):
+            return I("mission_log_plan", 0.85)
         if _has(t, r"\b(save|bookmark)\b|\b(log|record) (this|it|that)\b"):
             return I("save_record", 0.75)
         if _has(t, r"history|previous analys|mission log|what have (we|i) done|past (routes|analyses)"):
@@ -260,6 +263,59 @@ class RulePlanner:
         if not intent.slots.get("destination"):
             return f"Which destination should I plan to instead? Known places: {self._known_places()}.", "needs_clarification"
         return await self._do_route_find(intent, text, orch)
+
+    async def _do_mission_log_plan(self, intent, text, orch):
+        """'Write a mission log to go from point 1 to point 3': plan, estimate, draft the entry, offer to save it."""
+        s = intent.slots
+        dest = s.get("destination")
+        if not dest:
+            return f"Where should the EVA go? Known places: {self._known_places()}.", "needs_clarification"
+        args = {"destination": dest, "start": s.get("start", "current_position"), "mode": "candidates"}
+        if s.get("max_slope_deg"):
+            args["max_slope_deg"] = s["max_slope_deg"]
+        gen = await orch.call("route.generate", args)
+        if not gen.ok:
+            return f"I could not plan the route for the log: {self._fail(gen)}", "error"
+        d = gen.data
+        rid = d.get("recommended_route_id") or d["routes"][0]["route_id"]
+        r = orch.session.routes[rid]
+        m = r["metrics"]
+        ev = await orch.call("route.evaluate", {"route_id": rid})
+        eva = await orch.call("eva.estimate", {"route_id": rid, "stops": 1 if r["destination"].get("kind") == "science_stop" else 0})
+        rad = await orch.call("radiation.estimate", {})
+        if self._ui(orch, "map.display_route"):
+            await orch.call("map.display_route", {"route_id": rid, "emphasis": "primary", "fit": True})
+
+        ds = (d.get("dataset") or {})
+        lines = [f"MISSION LOG · EVA plan: {r['start']['name']} → {r['destination']['name']}",
+                 f"Route: {rid} \"{r['label']}\"{' (recommended)' if r.get('recommended') else ''}, {_fmt_m(m['distance_m'])}, "
+                 f"max slope {m['max_slope_deg']}°, mean {m['avg_slope_deg']}°, +{m['elevation_gain_m']} / −{m['elevation_loss_m']} m "
+                 f"({ds.get('name', 'DEM')} @ {ds.get('resolution_m', '?')} m)."]
+        if eva.ok:
+            e = normalize_eva(eva.data)
+            tl = (f"Timeline: walk out {_fmt_min(e['walk_out_min'])} · science {_fmt_min(e['science_min'])} · "
+                  f"walk back {_fmt_min(e['walk_back_min'])} · total {_fmt_min(e['total_min'])}")
+            if e.get("remaining_margin_min") is not None:
+                tl += f"; {_fmt_min(e['remaining_margin_min'])} margin against the suit budget ({e['status']})"
+            lines.append(tl + ".")
+        else:
+            lines.append(f"Timeline: not estimated ({self._fail(eva)}).")
+        secs = ev.data.get("steep_sections", []) if ev.ok else []
+        lines.append(f"Terrain: {len(secs)} section(s) above the {r['constraints']['caution_slope_deg']:g}° caution slope"
+                     + (f"; steepest {secs[0]['max_slope_deg']}° at {secs[0]['from_m']:.0f}–{secs[0]['to_m']:.0f} m." if secs else "."))
+        if rad.ok:
+            dose = rad.data.get("estimated_absorbed_dose_mgy") or (rad.data.get("calculations") or {}).get("estimated_absorbed_dose_mgy")
+            if dose is not None:
+                lines.append(f"Radiation: about {dose} mGy absorbed dose (Curiosity RAD Gale-crater reference, not a Jezero measurement).")
+        lines.append("Status: planned. Preliminary terrain assessment from elevation data; not a safety certification.")
+        entry = "\n".join(lines)
+
+        save = await orch.call("mission.save_record", {"label": f"EVA plan: {r['start']['name'].split(' · ')[0]} → "
+                                                                f"{r['destination']['name'].split(' · ')[0]}"[:120],
+                                                       "note": entry[:1000], "route_id": rid})
+        if save.status == "pending_confirmation":
+            return entry + "\nSave this entry to the mission log? Confirm below.", "needs_confirmation"
+        return entry + (f"\n(Could not prepare the save: {self._fail(save)})" if not save.ok else ""), "success" if save.ok else "partial"
 
     async def _base_route(self, intent, orch):
         sess = orch.session

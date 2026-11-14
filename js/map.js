@@ -25,7 +25,22 @@
    ===================================================================== */
 
 /* ---------- 1. Config + shared state ---------- */
-const API = "";                       // same server. Use "http://localhost:8000" if the page is served elsewhere
+// Backend base URL: the page's own server when it answers /api/health (marswalk-ai/backend/marswalk_api serves both),
+// otherwise the local Marswalk backend, so the page also works from a plain static server or VS Code Live Server.
+const API_CANDIDATES = ["", "http://127.0.0.1:8085"];
+let apiBasePromise = null;
+function apiBase() {
+  apiBasePromise ??= (async () => {
+    for (const base of API_CANDIDATES) {
+      try {
+        const r = await fetch(base + "/api/health", { cache: "no-store" });
+        if (r.ok && (r.headers.get("content-type") || "").includes("json")) return base;
+      } catch { /* not reachable: try the next one */ }
+    }
+    return "";
+  })();
+  return apiBasePromise;
+}
 const MARS_R = 3396190;               // metres, used ONLY for the on-screen scale bar
 const SLOPE_CAUTION = 8;              // display band (degrees); match backend config
 
@@ -53,7 +68,7 @@ class ApiError extends Error { constructor(status, msg) { super(msg); this.statu
 
 async function api(path, body) {
   const opts = body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {};
-  const r = await fetch(API + path, opts);
+  const r = await fetch((await apiBase()) + path, opts);
   if (!r.ok) {
     let msg = r.statusText;
     try { const j = await r.json(); msg = j.detail?.error?.message || j.detail || msg; } catch { /* not JSON */ }

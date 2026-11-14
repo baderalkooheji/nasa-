@@ -23,10 +23,16 @@
 .mwai-offline .mwai-orb-core { background: radial-gradient(circle, #ffd9c9 0%, var(--mw-mars) 50%, #6b2a10 100%); box-shadow: 0 0 12px var(--mw-mars); }
 
 /* ---------- panel */
-.mwai-panel { width: min(440px, calc(100vw - 32px)); height: min(720px, calc(100vh - 40px)); display: flex; flex-direction: column;
+.mwai-panel { position: fixed; width: min(420px, calc(100vw - 32px)); height: min(620px, calc(100vh - 40px)); display: flex; flex-direction: column;
+  resize: both; min-width: 320px; min-height: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
   background: linear-gradient(180deg, rgba(17, 24, 33, .97), rgba(11, 14, 19, .98)); border: 1px solid var(--mw-line2); border-radius: 14px;
   box-shadow: 0 18px 60px #000c, 0 0 0 1px rgba(94, 200, 242, .08), inset 0 1px 0 rgba(255, 255, 255, .04); overflow: hidden; backdrop-filter: blur(6px); }
 .mwai-panel[hidden] { display: none; }
+.mwai-head { cursor: move; user-select: none; touch-action: none; }
+.mwai-head .mwai-icon { cursor: pointer; }
+.mwai-dragging { opacity: .92; box-shadow: 0 24px 70px #000d, 0 0 0 1px rgba(94, 200, 242, .35); }
+.mwai-panel::after { content: ""; position: absolute; right: 3px; bottom: 3px; width: 10px; height: 10px; pointer-events: none;
+  border-right: 2px solid rgba(94, 200, 242, .45); border-bottom: 2px solid rgba(94, 200, 242, .45); border-radius: 0 0 4px 0; }
 .mwai-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 12px 10px 14px;
   border-bottom: 1px solid var(--mw-line); background: linear-gradient(90deg, rgba(94, 200, 242, .08), transparent 60%); }
 .mwai-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; letter-spacing: .08em; font-size: 12.5px; }

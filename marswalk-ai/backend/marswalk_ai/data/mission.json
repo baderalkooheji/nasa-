@@ -35,7 +35,9 @@
         "camp",
         "start",
         "sample depot",
-        "three forks"
+        "three forks",
+        "point h",
+        "stop h"
       ],
       "reason": "Flat crater floor at the foot of the delta, where Perseverance placed its sample depot.",
       "rover_sol": 632,
@@ -55,7 +57,10 @@
         "delta front",
         "hawksbill gap",
         "stop 1",
-        "first stop"
+        "first stop",
+        "point 1",
+        "point one",
+        "stop one"
       ],
       "reason": "Layered sedimentary rocks of the delta front, laid down in the ancient lake.",
       "rover_sol": 477,
@@ -74,7 +79,10 @@
         "upper delta front ridge",
         "ridge",
         "stop 2",
-        "second stop"
+        "second stop",
+        "point 2",
+        "point two",
+        "stop two"
       ],
       "reason": "Second look at the delta-front layers, further east along the scarp.",
       "rover_sol": 700,
@@ -92,7 +100,10 @@
         "crater floor",
         "crater floor east of the depot",
         "stop 3",
-        "third stop"
+        "third stop",
+        "point 3",
+        "point three",
+        "stop three"
       ],
       "reason": "Older crater-floor unit below the delta, for comparison with the lake sediments.",
       "rover_sol": 658,
