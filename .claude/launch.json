@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "marswalk-combined",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8083", "--bind", "127.0.0.1", "--directory", "C:\\Users\\ABDO\\Desktop\\marswalk-combined"],
+      "port": 8083,
+      "autoPort": false
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "marswalk-3d",
+  "version": "1.0.0",
+  "description": "Standalone 3D Mars globe and Jezero Crater terrain viewer (ArcGIS Maps SDK for JavaScript 5.1, CTX DEM + orthomosaic, HiRISE DTM).",
+  "private": true,
+  "type": "module",
+  "main": "js/mars3d.js",
+  "scripts": {
+    "start": "python -m http.server 8080 --bind 127.0.0.1",
+    "prepare-terrain": "cd scripts/prepare-terrain && python prepare_terrain.py --ctx-dem ../../data/raw/ctx/M20_JezeroCrater_CTXDEM_20m.tif --ctx-ortho ../../data/raw/ctx/M20_JezeroCrater_CTXortho_mosaic_5m.tif --hirise-dtm ../../data/raw/hirise/JEZ_hirise_soc_006_DTM_MOLAtopography_DeltaGeoid_1m_Eqc_latTs0_lon0_blend40.tif --hirise-ortho ../../data/raw/hirise/JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first.tif --out ../../data/processed"
+  },
+  "keywords": ["mars", "jezero", "3d", "arcgis", "nasa-space-apps", "ctx", "hirise"],
+  "comment": "No npm dependencies: the ArcGIS Maps SDK is loaded from https://js.arcgis.com/5.1/. Any static web server works; the scripts use Python's."
+}

@@ -1,0 +1,11 @@
+# Raw source GeoTIFFs are large (≈0.4 GB CTX, ≈1.8 GB HiRISE) — download them with docs/SETUP_GUIDE.md
+data/raw/**/*.tif
+data/raw/**/*.xml
+
+# Intermediate rasters produced by the preparation script
+data/processed/_work/
+
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

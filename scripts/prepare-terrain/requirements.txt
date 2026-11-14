@@ -1,0 +1,6 @@
+rasterio>=1.4   # bundles GDAL
+numpy>=1.26
+scipy>=1.11
+shapely>=2.0
+pillow>=10.0
+lerc>=4.0       # Esri LERC codec, used to read the global MDEM200M elevation tiles

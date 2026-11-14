@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marswalk — Mission Planner & 3D Globe</title>
+<link rel="icon" href="assets/icons/mars.svg" type="image/svg+xml">
+
+<!-- Leaflet (2D map) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<!-- ArcGIS Maps SDK for JavaScript 5.1 (3D globe) -->
+<link rel="stylesheet" href="https://js.arcgis.com/5.1/esri/themes/dark/main.css" />
+<script type="module" src="https://js.arcgis.com/5.1/"></script>
+
+<!-- Chart.js (route profiles) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<!-- Styles -->
+<link rel="stylesheet" href="css/nasa-style.css">
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/panels.css">
+<link rel="stylesheet" href="css/globe.css">
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="top">
+  <div class="brand">MARSWALK <span class="sub">Mission Planner & Globe</span></div>
+  <div class="region">
+    <strong id="missionName">EVA-01 · Jezero delta</strong>
+    <small class="muted">Planetocentric lat · east-positive lon</small>
+  </div>
+  <nav class="modes" aria-label="View mode">
+    <button id="mode2d" class="mode active" type="button">2D Map</button>
+    <button id="mode3d" class="mode" type="button">3D Globe</button>
+  </nav>
+  <div id="sw" class="badge" title="NASA DONKI space weather">Space weather: checking…</div>
+  <button id="btnChat" type="button">AI assistant</button>
+  <div class="bell-wrap">
+    <button id="btnBell" type="button" aria-label="Notifications" aria-expanded="false">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>
+      <span id="bellCount" class="count" hidden>0</span>
+    </button>
+    <div id="notifPanel" class="notif-panel" hidden>
+      <div class="notif-head"><strong>Notifications</strong><button id="btnClearNotifs" type="button" class="link">Clear all</button></div>
+      <ul id="notifList"></ul>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ============ LEFT SIDEBAR (tabs) ============ -->
+  <aside class="side" aria-label="Tools">
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="layers" class="tab active" type="button">Layers</button>
+      <button role="tab" data-tab="route" class="tab" type="button">Route</button>
+      <button role="tab" data-tab="env" class="tab" type="button">Environment</button>
+      <button role="tab" data-tab="records" class="tab" type="button">Mission log</button>
+    </nav>
+
+    <!-- Layers -->
+    <section id="tab-layers" class="tabpane">
+      <h2>NASA base imagery</h2>
+      <div id="basemaps"></div>
+      <h2>Data layers</h2>
+      <div id="layers"></div>
+      <h2>Mission stops</h2>
+      <ol id="stops" class="stops"></ol>
+      <button id="btnReset" type="button">Reset map view</button>
+    </section>
+
+    <!-- Route planner -->
+    <section id="tab-route" class="tabpane" hidden>
+      <h2>Route B · automatic</h2>
+      <button id="btnAuto" class="primary" type="button">Auto-route around hazards</button>
+      <label class="slider"><span>Max walkable slope: <b id="slopeVal">15</b>° <small class="muted">(project-defined)</small></span>
+        <input id="slope" type="range" min="5" max="25" value="15">
+      </label>
+      <h2>Route A · hand-drawn</h2>
+      <button id="btnDraw" type="button">Draw route by hand</button>
+      <p class="hint" id="drawHint" hidden>Click the map to add points. Drag a point to move it, right-click to delete it. Press <b>Finish route</b> when done.</p>
+      <ol id="waypointList" class="wp-list"></ol>
+      <button id="btnClear" type="button">Clear both routes</button>
+      <p class="muted small">Results are preliminary terrain assessments from elevation data. They do not establish astronaut safety.</p>
+    </section>
+
+    <!-- Environment dashboard -->
+    <section id="tab-env" class="tabpane" hidden>
+      <h2>Environment</h2>
+      <div id="envPanel" class="placeholder">
+        <p><b>MEDA dashboard: placeholder.</b></p>
+        <p class="muted small">Will show air temperature, pressure and wind measured by Perseverance (with sol, time and units) once the backend serves <code>/api/meda</code>.</p>
+      </div>
+      <div class="card">
+        <h3>Radiation reference</h3>
+        <p class="small">0.21 mGy/day galactic cosmic ray dose, <b>measured at Gale crater</b> by Curiosity RAD. Historical observation from another site, used as context for Jezero.</p>
+      </div>
+    </section>
+
+    <!-- Mission log -->
+    <section id="tab-records" class="tabpane" hidden>
+      <h2>Mission log</h2>
+      <input id="recordSearch" type="search" placeholder="Search records" aria-label="Search records">
+      <ul id="recordList" class="records"><li class="muted small">No records yet. Use "Save to log" after an analysis.</li></ul>
+    </section>
+  </aside>
+
+  <!-- ============ MAIN VIEWPORT ============ -->
+  <main class="center">
+    <!-- 2D Map View -->
+    <div id="view2d" class="viewport-2d">
+      <div class="map-wrap">
+        <div id="map" role="application" aria-label="Map of Jezero crater"></div>
+        <div id="dataBanner" class="map-badge top-left" hidden></div>
+        <div class="map-badge bottom-right mono">
+          <div id="coords">Move the mouse over the map</div>
+          <div id="scale"></div>
+        </div>
+        <div class="map-badge bottom-left legend" id="routeLegend">
+          <span><i class="sw" style="background:#5EC8F2"></i>Route B · auto</span>
+          <span><i class="sw dash"></i>Route A · hand</span>
+          <span><i class="sw" style="background:#F2C14E"></i>8–15°</span>
+          <span><i class="sw" style="background:#F97316"></i>> limit</span>
+        </div>
+      </div>
+
+      <section class="panel" aria-label="Route analysis">
+        <div class="col">
+          <h3>Elevation profile</h3>
+          <canvas id="profile" height="140"></canvas>
+          <small id="method" class="muted"></small>
+        </div>
+        <div class="col">
+          <h3>Compare routes</h3>
+          <table id="compare"><thead><tr><th></th><th>A · hand</th><th>B · auto</th></tr></thead><tbody></tbody></table>
+          <p id="compareNote" class="muted small"></p>
+        </div>
+        <div class="col wide">
+          <h3>EVA budget <small id="evaLabel" class="muted"></small></h3>
+          <div id="evaBar" class="evabar"><span class="muted small">Run auto-route to see the time budget.</span></div>
+          <small id="dose" class="muted"></small>
+        </div>
+      </section>
+    </div>
+
+    <!-- 3D Globe View -->
+    <div id="view3d" class="viewport-3d" hidden>
+      <div class="app" id="app">
+        <header class="topbar">
+          <div class="brand">
+            <img src="assets/icons/mars.svg" alt="" class="brand-logo" />
+            <span class="brand-name">Marswalk <strong>3D</strong></span>
+          </div>
+          <nav class="region-nav" aria-label="Region">
+            <button class="nav-btn is-active" id="nav-global" type="button">Global Mars</button>
+            <button class="nav-btn" id="nav-jezero" type="button">Jezero Crater</button>
+          </nav>
+          <div class="status" id="status" role="status" aria-live="polite">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">Starting…</span>
+          </div>
+        </header>
+        <main class="workspace">
+          <aside class="panel panel-left" id="panel-left" aria-label="Layers">
+            <button class="panel-toggle" type="button" data-target="panel-left" aria-expanded="true" title="Collapse layers panel">
+              <span class="chev"></span>
+            </button>
+            <div class="panel-body">
+              <h2 class="panel-title">Layers</h2>
+
+              <section class="layer-group">
+                <h3>Global Mars</h3>
+                <label class="layer-row"><input type="radio" name="basemap" value="mdim" checked />
+                  <span><b>Viking MDIM 2.1 imagery</b><small>Global colour mosaic · ~232 m/px</small></span></label>
+                <label class="layer-row"><input type="radio" name="basemap" value="colordem" />
+                  <span><b>MOLA/HRSC colour relief</b><small>Colourised shaded elevation</small></span></label>
+                <label class="layer-row"><input type="checkbox" data-layer="global-elevation" checked />
+                  <span><b>Global elevation</b><small>MOLA/HRSC blended DEM · 200 m</small></span></label>
+              </section>
+
+              <section class="layer-group">
+                <h3>Jezero · CTX</h3>
+                <label class="layer-row"><input type="checkbox" data-layer="ctx-dem" checked />
+                  <span><b>CTX terrain</b><small>JPL M2020 DEM · 20 m</small></span></label>
+                <label class="layer-row"><input type="checkbox" data-layer="ctx-ortho" checked />
+                  <span><b>CTX orthomosaic</b><small>JPL M2020 ortho · 5 m</small></span></label>
+              </section>
+
+              <section class="layer-group">
+                <h3>Jezero · HiRISE</h3>
+                <label class="layer-row"><input type="checkbox" data-layer="hirise-dtm" checked />
+                  <span><b>HiRISE terrain</b><small>M2020 TRN DTM · 1 m source</small></span></label>
+                <label class="layer-row"><input type="checkbox" data-layer="hirise-imagery" checked />
+                  <span><b>HiRISE imagery</b><small>USGS controlled ortho · 25 cm source</small></span></label>
+                <p class="hint" id="hirise-hint">HiRISE appears only inside its verified coverage on the crater floor; zoom in below ~25 km to see it.</p>
+              </section>
+
+              <section class="layer-group">
+                <h3>Overlays</h3>
+                <label class="layer-row"><input type="checkbox" data-layer="jezero-marker" checked />
+                  <span><b>Jezero marker</b><small>IAU centre · 47.5 km crater</small></span></label>
+                <label class="layer-row"><input type="checkbox" data-layer="footprints" checked />
+                  <span><b>Data coverage outlines</b><small>Verified raster extents</small></span></label>
+              </section>
+            </div>
+          </aside>
+
+          <section class="viewport">
+            <div id="viewDiv" class="view"></div>
+
+            <div class="view-controls" role="toolbar" aria-label="Camera">
+              <button type="button" id="btn-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+              <button type="button" id="btn-zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+              <button type="button" id="btn-reset" title="Reset camera" aria-label="Reset camera">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z" fill="currentColor"/></svg>
+              </button>
+            </div>
+
+            <div class="cta">
+              <button type="button" class="cta-btn" id="btn-explore">Explore Jezero</button>
+              <button type="button" class="cta-btn cta-secondary" id="btn-back" hidden>Back to Global Mars</button>
+            </div>
+
+            <div class="loading-veil" id="loading-veil">
+              <div class="spinner"></div>
+              <p id="loading-text">Loading Mars…</p>
+            </div>
+          </section>
+
+          <aside class="panel panel-right" id="panel-right" aria-label="Location details">
+            <button class="panel-toggle" type="button" data-target="panel-right" aria-expanded="true" title="Collapse details panel">
+              <span class="chev"></span>
+            </button>
+            <div class="panel-body">
+              <h2 class="panel-title">Details</h2>
+
+              <section class="info-block">
+                <h3>Selected region</h3>
+                <p class="region-name" id="info-region">Global Mars</p>
+                <p class="muted" id="info-region-sub">Click anywhere on the surface to inspect it.</p>
+              </section>
+
+              <section class="info-block">
+                <h3>Coordinates</h3>
+                <dl class="kv">
+                  <dt>Latitude</dt><dd id="info-lat">—</dd>
+                  <dt>Longitude</dt><dd id="info-lon">—</dd>
+                </dl>
+              </section>
+
+              <section class="info-block">
+                <h3>Elevation <small class="muted">rel. to areoid</small></h3>
+                <dl class="kv" id="info-elev">
+                  <dt>—</dt><dd>—</dd>
+                </dl>
+              </section>
+
+              <section class="info-block">
+                <h3>Active data sources</h3>
+                <ul class="sources" id="info-sources"></ul>
+              </section>
+
+              <section class="info-block">
+                <h3>Camera</h3>
+                <dl class="kv">
+                  <dt>Altitude</dt><dd id="info-alt">—</dd>
+                  <dt>Heading / tilt</dt><dd id="info-ht">—</dd>
+                </dl>
+              </section>
+
+              <p class="fineprint">No vertical exaggeration. Elevations are metres relative to the Mars areoid, exactly as published.</p>
+            </div>
+          </aside>
+        </main>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ RIGHT PANEL ============ -->
+  <aside class="side right" aria-label="Selected location">
+    <h2>Selected location</h2>
+    <div id="info" class="muted">Click the map or a stop.</div>
+    <div id="photos" class="photos" hidden></div>
+    <button id="btnSaveRecord" type="button" disabled>Save to log</button>
+  </aside>
+</div>
+
+<!-- ============ AI assistant drawer ============ -->
+<aside id="chat" class="chat" hidden aria-label="AI assistant">
+  <div class="chat-head">
+    <strong>AI assistant</strong>
+    <div><button id="btnChatClear" type="button" class="link">Clear</button>
+    <button id="btnChatClose" type="button" aria-label="Close assistant">✕</button></div>
+  </div>
+  <div id="chatLog" class="chat-log"></div>
+  <div class="chat-suggest">
+    <button type="button" class="chip">Tell me about this location</button>
+    <button type="button" class="chip">Explain the slope on this route</button>
+    <button type="button" class="chip">How do I compare two routes?</button>
+  </div>
+  <form id="chatForm" class="chat-form">
+    <input id="chatInput" type="text" placeholder="Ask about this location or the app" aria-label="Message" autocomplete="off">
+    <button type="submit" class="primary">Send</button>
+  </form>
+</aside>
+
+<!-- ============ Scripts ============ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="JS/nasa-config.js"></script>
+<script src="JS/map.js"></script>
+<script type="module" src="js/app.js"></script>
+<script type="module" src="JS/integration.js"></script>
+</body>
+</html>

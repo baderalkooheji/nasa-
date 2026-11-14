@@ -1,0 +1,49 @@
+{
+  "_note": "Starter stops placed on REAL Perseverance end-of-drive positions from NASA M20_waypoints.json (planetocentric lat, east-positive lon). Data & Science: confirm names, reasons and source links before the demo, then delete this _note.",
+  "coordinate_system": "Mars planetocentric latitude, east-positive longitude (IAU2000:49900)",
+  "habitat": {
+    "id": "H",
+    "name": "Habitat · Three Forks area (crater floor at the delta base)",
+    "lat": 18.451331,
+    "lon": 77.401257,
+    "rover_sol": 632,
+    "rover_elev_geoid_m": -2525.28,
+    "reason": "Flat crater floor at the foot of the delta, where Perseverance placed its sample depot.",
+    "source": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json"
+  },
+  "stops": [
+    {
+      "id": "1",
+      "name": "Delta front · Hawksbill Gap",
+      "lat": 18.458895,
+      "lon": 77.406168,
+      "rover_sol": 477,
+      "rover_elev_geoid_m": -2520.85,
+      "reason": "Layered sedimentary rocks of the delta front, laid down in the ancient lake.",
+      "source": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json",
+      "photos": []
+    },
+    {
+      "id": "2",
+      "name": "Upper delta-front ridge",
+      "lat": 18.458109,
+      "lon": 77.408763,
+      "rover_sol": 700,
+      "rover_elev_geoid_m": -2528.16,
+      "reason": "Second look at the delta-front layers, further east along the scarp.",
+      "source": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json",
+      "photos": []
+    },
+    {
+      "id": "3",
+      "name": "Crater floor east of the depot",
+      "lat": 18.45267,
+      "lon": 77.408056,
+      "rover_sol": 658,
+      "rover_elev_geoid_m": -2545.31,
+      "reason": "Older crater-floor unit below the delta, for comparison with the lake sediments.",
+      "source": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json",
+      "photos": []
+    }
+  ]
+}

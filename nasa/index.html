@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marswalk Mission Planner</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="CSS/style.css">
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="top">
+  <div class="brand">MARSWALK <span class="sub">Mission Planner</span></div>
+  <div class="region">
+    <strong id="missionName">EVA-01 · Jezero delta</strong>
+    <small class="muted">Planetocentric lat · east-positive lon</small>
+  </div>
+  <nav class="modes" aria-label="View mode">
+    <button id="mode2d" class="mode active" type="button">2D Map</button>
+    <button id="mode3d" class="mode" type="button">Explore in 3D</button>
+  </nav>
+  <div id="sw" class="badge" title="NASA DONKI space weather">Space weather: checking…</div>
+  <button id="btnChat" type="button">AI assistant</button>
+  <div class="bell-wrap">
+    <button id="btnBell" type="button" aria-label="Notifications" aria-expanded="false">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>
+      <span id="bellCount" class="count" hidden>0</span>
+    </button>
+    <div id="notifPanel" class="notif-panel" hidden>
+      <div class="notif-head"><strong>Notifications</strong><button id="btnClearNotifs" type="button" class="link">Clear all</button></div>
+      <ul id="notifList"></ul>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ============ LEFT SIDEBAR (tabs) ============ -->
+  <aside class="side" aria-label="Tools">
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="layers" class="tab active" type="button">Layers</button>
+      <button role="tab" data-tab="route" class="tab" type="button">Route</button>
+      <button role="tab" data-tab="env" class="tab" type="button">Environment</button>
+      <button role="tab" data-tab="records" class="tab" type="button">Mission log</button>
+    </nav>
+
+    <!-- Layers: built by app.js from /api/layers -->
+    <section id="tab-layers" class="tabpane">
+      <h2>NASA base imagery</h2>
+      <div id="basemaps"></div>
+      <h2>Data layers</h2>
+      <div id="layers"></div>
+      <h2>Mission stops</h2>
+      <ol id="stops" class="stops"></ol>
+      <button id="btnReset" type="button">Reset map view</button>
+    </section>
+
+    <!-- Route planner -->
+    <section id="tab-route" class="tabpane" hidden>
+      <h2>Route B · automatic</h2>
+      <button id="btnAuto" class="primary" type="button">Auto-route around hazards</button>
+      <label class="slider"><span>Max walkable slope: <b id="slopeVal">15</b>° <small class="muted">(project-defined)</small></span>
+        <input id="slope" type="range" min="5" max="25" value="15">
+      </label>
+      <h2>Route A · hand-drawn</h2>
+      <button id="btnDraw" type="button">Draw route by hand</button>
+      <p class="hint" id="drawHint" hidden>Click the map to add points. Drag a point to move it, right-click to delete it. Press <b>Finish route</b> when done.</p>
+      <ol id="waypointList" class="wp-list"></ol>
+      <button id="btnClear" type="button">Clear both routes</button>
+      <p class="muted small">Results are preliminary terrain assessments from elevation data. They do not establish astronaut safety.</p>
+    </section>
+
+    <!-- PLACEHOLDER: Environment dashboard (Integration role builds /api/meda) -->
+    <section id="tab-env" class="tabpane" hidden>
+      <h2>Environment</h2>
+      <div id="envPanel" class="placeholder">
+        <p><b>MEDA dashboard: placeholder.</b></p>
+        <p class="muted small">Will show air temperature, pressure and wind measured by Perseverance (with sol, time and units) once the backend serves <code>/api/meda</code>.</p>
+      </div>
+      <div class="card">
+        <h3>Radiation reference</h3>
+        <p class="small">0.21 mGy/day galactic cosmic ray dose, <b>measured at Gale crater</b> by Curiosity RAD. Historical observation from another site, used as context for Jezero.</p>
+      </div>
+    </section>
+
+    <!-- PLACEHOLDER: Mission log (Integration role builds /api/records) -->
+    <section id="tab-records" class="tabpane" hidden>
+      <h2>Mission log</h2>
+      <input id="recordSearch" type="search" placeholder="Search records" aria-label="Search records">
+      <ul id="recordList" class="records"><li class="muted small">No records yet. Use “Save to log” after an analysis.</li></ul>
+    </section>
+  </aside>
+
+  <!-- ============ MAP + BOTTOM PANEL ============ -->
+  <main class="center">
+    <div class="map-wrap">
+      <div id="map" role="application" aria-label="Map of Jezero crater"></div>
+      <div id="dataBanner" class="map-badge top-left" hidden></div>
+      <div class="map-badge bottom-right mono">
+        <div id="coords">Move the mouse over the map</div>
+        <div id="scale"></div>
+      </div>
+      <div class="map-badge bottom-left legend" id="routeLegend">
+        <span><i class="sw" style="background:#5EC8F2"></i>Route B · auto</span>
+        <span><i class="sw dash"></i>Route A · hand</span>
+        <span><i class="sw" style="background:#F2C14E"></i>8–15°</span>
+        <span><i class="sw" style="background:#F97316"></i>&gt; limit</span>
+      </div>
+    </div>
+
+    <section class="panel" aria-label="Route analysis">
+      <div class="col">
+        <h3>Elevation profile</h3>
+        <canvas id="profile" height="140"></canvas>
+        <small id="method" class="muted"></small>
+      </div>
+      <div class="col">
+        <h3>Compare routes</h3>
+        <table id="compare"><thead><tr><th></th><th>A · hand</th><th>B · auto</th></tr></thead><tbody></tbody></table>
+        <p id="compareNote" class="muted small"></p>
+      </div>
+      <div class="col wide">
+        <h3>EVA budget <small id="evaLabel" class="muted"></small></h3>
+        <div id="evaBar" class="evabar"><span class="muted small">Run auto-route to see the time budget.</span></div>
+        <small id="dose" class="muted"></small>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ RIGHT PANEL ============ -->
+  <aside class="side right" aria-label="Selected location">
+    <h2>Selected location</h2>
+    <div id="info" class="muted">Click the map or a stop.</div>
+    <div id="photos" class="photos" hidden></div>
+    <button id="btnSaveRecord" type="button" disabled>Save to log</button>
+  </aside>
+</div>
+
+<!-- ============ PLACEHOLDER: AI assistant drawer (AI role builds /api/chat) ============ -->
+<aside id="chat" class="chat" hidden aria-label="AI assistant">
+  <div class="chat-head">
+    <strong>AI assistant</strong>
+    <div><button id="btnChatClear" type="button" class="link">Clear</button>
+    <button id="btnChatClose" type="button" aria-label="Close assistant">✕</button></div>
+  </div>
+  <div id="chatLog" class="chat-log"></div>
+  <div class="chat-suggest">
+    <button type="button" class="chip">Tell me about this location</button>
+    <button type="button" class="chip">Explain the slope on this route</button>
+    <button type="button" class="chip">How do I compare two routes?</button>
+  </div>
+  <form id="chatForm" class="chat-form">
+    <input id="chatInput" type="text" placeholder="Ask about this location or the app" aria-label="Message" autocomplete="off">
+    <button type="submit" class="primary">Send</button>
+  </form>
+</aside>
+
+<!-- ============ PLACEHOLDER: 3D view (Frontend, optional, Hours 32-36) ============ -->
+<div id="view3d" class="view3d" hidden>
+  <div class="placeholder big">
+    <h2>3D view: placeholder</h2>
+    <p>Will show the same route and stops on real Jezero terrain (Cesium, team guide section 11).</p>
+    <p id="view3dState" class="muted small"></p>
+    <button id="btnBack2d" type="button" class="primary">Back to 2D map</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="JS/nasa-config.js"></script>
+<script src="JS/map.js"></script>
+</body>
+</html>
