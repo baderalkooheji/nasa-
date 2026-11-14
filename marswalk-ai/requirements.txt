@@ -1,0 +1,13 @@
+# Marswalk AI backend
+fastapi>=0.110
+uvicorn>=0.29
+httpx>=0.27
+numpy>=1.26
+scipy>=1.11          # least-cost routing (scipy.sparse.csgraph.dijkstra)
+pydantic>=2.6        # installed with fastapi
+
+# Optional: real DEM terrain (CTX / HiRISE GeoTIFFs). Without it the assistant uses clearly labelled SIMULATED terrain.
+rasterio>=1.3
+
+# Tests
+pytest>=8.0

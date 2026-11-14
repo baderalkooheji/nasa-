@@ -1,0 +1,144 @@
+{
+  "mission_id": "EVA-01",
+  "name": "EVA-01 · Jezero delta",
+  "status": "planning",
+  "status_source": "MOCK - the original Marswalk app has no mission-status model (see MARSWALK_TECHNICAL_REFERENCE.md §10)",
+  "coordinate_system": "Mars planetocentric latitude, east-positive longitude (IAU2000:49900 sphere, R = 3 396 190 m)",
+  "bounds": [
+    [
+      18.2110274,
+      77.1604655
+    ],
+    [
+      18.7211945,
+      77.6991776
+    ]
+  ],
+  "current_position_poi": "habitat",
+  "current_position_source": "MOCK - astronaut position assumed at the habitat",
+  "planned_stops": [
+    "stop-1",
+    "stop-2",
+    "stop-3"
+  ],
+  "pois": [
+    {
+      "id": "habitat",
+      "name": "Habitat · Three Forks area (crater floor at the delta base)",
+      "kind": "habitat",
+      "lat": 18.451331,
+      "lon": 77.401257,
+      "aliases": [
+        "habitat",
+        "base",
+        "home",
+        "camp",
+        "start",
+        "sample depot",
+        "three forks"
+      ],
+      "reason": "Flat crater floor at the foot of the delta, where Perseverance placed its sample depot.",
+      "rover_sol": 632,
+      "rover_elev_geoid_m": -2525.28,
+      "source": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json",
+      "provenance": "Position = real Perseverance end-of-drive localisation (NASA/JPL-Caltech MMGIS). Name and reason = Marswalk starter set, not yet confirmed by the science team."
+    },
+    {
+      "id": "stop-1",
+      "name": "Delta front · Hawksbill Gap",
+      "kind": "science_stop",
+      "lat": 18.458895,
+      "lon": 77.406168,
+      "aliases": [
+        "delta",
+        "the delta",
+        "delta front",
+        "hawksbill gap",
+        "stop 1",
+        "first stop"
+      ],
+      "reason": "Layered sedimentary rocks of the delta front, laid down in the ancient lake.",
+      "rover_sol": 477,
+      "rover_elev_geoid_m": -2520.85,
+      "source": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json",
+      "provenance": "Position = real Perseverance end-of-drive localisation (NASA/JPL-Caltech MMGIS). Name and reason = Marswalk starter set, not yet confirmed by the science team."
+    },
+    {
+      "id": "stop-2",
+      "name": "Upper delta-front ridge",
+      "kind": "science_stop",
+      "lat": 18.458109,
+      "lon": 77.408763,
+      "aliases": [
+        "upper delta-front ridge",
+        "upper delta front ridge",
+        "ridge",
+        "stop 2",
+        "second stop"
+      ],
+      "reason": "Second look at the delta-front layers, further east along the scarp.",
+      "rover_sol": 700,
+      "rover_elev_geoid_m": -2528.16,
+      "source": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json",
+      "provenance": "Position = real Perseverance end-of-drive localisation (NASA/JPL-Caltech MMGIS). Name and reason = Marswalk starter set, not yet confirmed by the science team."
+    },
+    {
+      "id": "stop-3",
+      "name": "Crater floor east of the depot",
+      "kind": "science_stop",
+      "lat": 18.45267,
+      "lon": 77.408056,
+      "aliases": [
+        "crater floor",
+        "crater floor east of the depot",
+        "stop 3",
+        "third stop"
+      ],
+      "reason": "Older crater-floor unit below the delta, for comparison with the lake sediments.",
+      "rover_sol": 658,
+      "rover_elev_geoid_m": -2545.31,
+      "source": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json",
+      "provenance": "Position = real Perseverance end-of-drive localisation (NASA/JPL-Caltech MMGIS). Name and reason = Marswalk starter set, not yet confirmed by the science team."
+    },
+    {
+      "id": "landing",
+      "name": "Octavia E. Butler Landing (Perseverance landing site)",
+      "kind": "landmark",
+      "lat": 18.44462715,
+      "lon": 77.45088572,
+      "aliases": [
+        "landing site",
+        "landing",
+        "octavia e. butler landing",
+        "octavia butler"
+      ],
+      "reason": "Perseverance localisation at sol 13.",
+      "rover_sol": 13,
+      "rover_elev_geoid_m": -2569.91,
+      "source": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json",
+      "provenance": "NASA/JPL-Caltech MMGIS M20_waypoints.json (first localisation)."
+    },
+    {
+      "id": "jezero-centre",
+      "name": "Jezero Crater centre (IAU)",
+      "kind": "landmark",
+      "lat": 18.4082,
+      "lon": 77.6873,
+      "aliases": [
+        "crater centre",
+        "crater center",
+        "jezero centre",
+        "jezero center",
+        "centre of jezero",
+        "center of jezero"
+      ],
+      "reason": "Nominal crater centre; the crater is 47.52 km across.",
+      "source": "IAU Gazetteer of Planetary Nomenclature, feature 14300",
+      "provenance": "IAU Gazetteer (as used by Marswalk 3D, js/jezero-region.js)."
+    }
+  ],
+  "built_from": [
+    "stops.json",
+    "M20_waypoints.json"
+  ]
+}

@@ -312,5 +312,41 @@
 <script src="JS/map.js"></script>
 <script type="module" src="js/app.js"></script>
 <script type="module" src="JS/integration.js"></script>
+
+<!-- ============ Marswalk AI assistant (marswalk-ai/) ============
+     Loaded from the assistant server. If it is not running, nothing is loaded and the
+     original AI assistant drawer above keeps working. Change AI_URL if the server moves. -->
+<script>
+(function () {
+  var AI_URL = "http://127.0.0.1:8090";
+  function load(src, attrs) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = src;
+      for (var k in attrs || {}) s.setAttribute(k, attrs[k]);
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error("could not load " + src)); };
+      document.body.appendChild(s);
+    });
+  }
+  var ctrl = window.AbortController ? new AbortController() : null;
+  var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 3000);
+  fetch(AI_URL + "/api/assistant/health", ctrl ? { signal: ctrl.signal } : {})
+    .then(function (r) { clearTimeout(timer); if (!r.ok) throw new Error("HTTP " + r.status); })
+    .then(function () {
+      var css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = AI_URL + "/css/assistant.css";
+      document.head.appendChild(css);
+      return load(AI_URL + "/js/action-bridge.js")
+        .then(function () { return load(AI_URL + "/js/assistant.js"); })
+        .then(function () { return load(AI_URL + "/integration/marswalk-bridge.js", { "data-api": AI_URL }); });
+    })
+    .catch(function (err) {
+      clearTimeout(timer);
+      console.info("[Marswalk AI] assistant server not available (" + err.message + "); using the built-in drawer.");
+    });
+})();
+</script>
 </body>
 </html>
