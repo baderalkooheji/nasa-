@@ -8,7 +8,7 @@
      4. Map setup, coordinates, Mars scale bar, reset
      5. Data layers (opacity, info, legend, unavailable layers)
      6. Mission stops + Perseverance traverse
-     7. Selection panel (right side) + photos
+     7. Selection panel (right side)
      8. Route A: hand-drawn, editable waypoints
      9. Route B: auto-route + EVA budget
     10. Profile chart, route comparison, EVA bar
@@ -399,21 +399,14 @@ onState(["selected"], s => {
   const label = p.kind === "point" ? "" : `<span class="label illus">${AppState.stops?._note ? "illustrative placeholder" : "mission stop"}</span>`;
   $("info").innerHTML = `
     ${p.name ? `<h3>${esc(p.name)} ${label}</h3>` : ""}
-    ${p.reason ? `<p>${esc(p.reason)} ${p.source ? `<a href="${esc(p.source)}" target="_blank" rel="noopener">source</a>` : ""}</p>` : ""}
+    ${p.reason ? `<p>${esc(p.reason)}</p>` : ""}
     <table>
       <tr><th>Lat / lon</th><td class="mono">${fmtLL(p.lat, p.lon)}</td></tr>
       <tr><th>Elevation</th><td>${p.elevation_m != null ? p.elevation_m + ` m <span class='label measured'>${String(p.source_dataset).startsWith("Perseverance") ? "rover-measured" : "DEM"}</span>` : "no data"}</td></tr>
       <tr><th>Slope</th><td>${p.slope_deg != null ? p.slope_deg + "° <span class='label calc'>calculated</span>" : "no data"}</td></tr>
-      <tr><th>Source</th><td>${esc(p.source_dataset)}</td></tr>
     </table>
     ${p.no_data_reason ? `<p class="over small">${esc(p.no_data_reason)}</p>` : ""}`;
-  // Photos: Integration fills stops.json "photos": [{url, sol, camera, dist_m, credit}]
-  const photos = p.photos || [];
-  $("photos").hidden = p.kind !== "stop";
-  $("photos").innerHTML = photos.length
-    ? photos.map(ph => `<figure><img src="${esc(ph.url)}" alt="${esc(ph.camera)} photo, sol ${ph.sol}" loading="lazy">
-        <figcaption>${esc(ph.camera)} · sol ${ph.sol}${ph.dist_m ? ` · ~${ph.dist_m} m away` : ""}<br>${esc(ph.credit || "NASA/JPL-Caltech")}</figcaption></figure>`).join("")
-    : `<div class="ph">Rover photo<br>not added yet</div><div class="ph">Rover photo<br>not added yet</div><div class="ph">Rover photo<br>not added yet</div>`;
+  $("photos").hidden = true;                       // rover photo area removed from the panel
 });
 
 // Expose select for integration.js
