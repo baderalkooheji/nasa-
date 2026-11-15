@@ -16,7 +16,7 @@ def load_dotenv(path: Path) -> None:
     """Minimal .env loader: KEY=VALUE lines; never overrides variables already set."""
     if not path.is_file():
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():   # -sig: Windows editors often add a BOM
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -111,7 +111,8 @@ class Settings:
         s.science_engine_url = (_env("SCIENCE_ENGINE_URL") or "").rstrip("/") or None
         s.marswalk_api_url = (_env("MARSWALK_API_URL") or "").rstrip("/") or None
         s.marswalk_enabled_endpoints = [e.strip() for e in (_env("MARSWALK_ENABLED_ENDPOINTS") or "").split(",") if e.strip()]
-        s.knowledge_dir = _env("KNOWLEDGE_DIR")
+        # one or more folders of Markdown documents, separated by ";" (default: marswalk-ai/knowledge, the Mars AI Agent Knowledge Base)
+        s.knowledge_dir = _env("KNOWLEDGE_DIR", str(AI_ROOT / "knowledge") if (AI_ROOT / "knowledge").is_dir() else None)
         s.ctx_dem_path = _path(_env("CTX_DEM_PATH", _default_path("data", "raw", "ctx", "M20_JezeroCrater_CTXDEM_20m.tif")))
         s.hirise_dtm_path = _path(_env("HIRISE_DTM_PATH", _default_path(
             "data", "raw", "hirise", "JEZ_hirise_soc_006_DTM_MOLAtopography_DeltaGeoid_1m_Eqc_latTs0_lon0_blend40.tif")))

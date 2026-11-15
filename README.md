@@ -26,6 +26,17 @@ for the Esri SDK and the global Mars services. Full instructions, including how 
 rebuild the Jezero tiles from the original GeoTIFFs, are in
 [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md).
 
+## Full Mission Planner with the AI assistant
+
+The combined app (2D planner + 3D globe + journey + AI) runs from two local servers:
+
+1. Marswalk backend, serves the page and the DEM data:
+   `cd marswalk-ai && .venv\Scripts\python -m uvicorn marswalk_api.main:app --app-dir backend --port 8085`
+2. Marswalk AI assistant (local Ollama model + tools + knowledge base), see [marswalk-assistant/README.md](marswalk-assistant/README.md):
+   `marswalk-assistant\.venv\Scripts\python marswalk-assistant\backend\main.py` (needs Ollama with `qwen3:1.7b`)
+
+Open <http://127.0.0.1:8085/> and click the orange orb (bottom right). Without the assistant server the page still works.
+
 ## Using it
 
 | Action | How |

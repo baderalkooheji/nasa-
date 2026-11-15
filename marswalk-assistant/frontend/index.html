@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marswalk AI Assistant - Mission Control</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Background Effects -->
+    <div class="bg-effects">
+        <div class="grid-overlay"></div>
+        <div class="scanline"></div>
+        <div class="particles" id="particles"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="app-container">
+        <!-- Header / Mission Bar -->
+        <header class="mission-bar">
+            <div class="mission-logo">
+                <svg class="logo-icon" viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="2"/>
+                    <path d="M32 12 L32 52 M12 32 L52 32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="32" cy="32" r="8" fill="currentColor"/>
+                    <circle cx="32" cy="32" r="4" fill="#0a0a0a"/>
+                </svg>
+                <div class="logo-text">
+                    <span class="logo-main">MARSWALK</span>
+                    <span class="logo-sub">AI ASSISTANT</span>
+                </div>
+            </div>
+
+            <div class="mission-info">
+                <div class="mission-badge">
+                    <span class="badge-dot active"></span>
+                    <span class="badge-text" id="missionName">EVA-01 · Jezero Delta</span>
+                </div>
+                <div class="connection-status">
+                    <span class="status-dot" id="connectionDot"></span>
+                    <span class="status-text" id="connectionText">Connecting...</span>
+                </div>
+            </div>
+
+            <div class="mission-controls">
+                <button class="icon-btn" id="btnSettings" title="Settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
+                <button class="icon-btn" id="btnClearChat" title="Clear Conversation">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Left Panel: Mission Context -->
+            <aside class="context-panel" id="contextPanel">
+                <div class="panel-header">
+                    <h3>MISSION CONTEXT</h3>
+                    <button class="panel-toggle" id="toggleContext" aria-label="Toggle context panel">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                </div>
+
+                <div class="panel-content">
+                    <!-- Current Route -->
+                    <section class="context-section">
+                        <h4>ACTIVE ROUTE</h4>
+                        <div class="route-info" id="routeInfo">
+                            <div class="route-placeholder">No active route</div>
+                        </div>
+                    </section>
+
+                    <!-- Selected Location -->
+                    <section class="context-section">
+                        <h4>SELECTED LOCATION</h4>
+                        <div class="location-info" id="locationInfo">
+                            <div class="location-placeholder">No location selected</div>
+                        </div>
+                    </section>
+
+                    <!-- Map Layers -->
+                    <section class="context-section">
+                        <h4>ACTIVE LAYERS</h4>
+                        <div class="layers-list" id="layersList">
+                            <div class="layer-item active" data-layer="viking">
+                                <span class="layer-indicator"></span>
+                                <span class="layer-name">Viking Mosaic</span>
+                            </div>
+                            <div class="layer-item active" data-layer="ctx_regional">
+                                <span class="layer-indicator"></span>
+                                <span class="layer-name">CTX Regional</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Mission Objectives -->
+                    <section class="context-section">
+                        <h4>OBJECTIVES</h4>
+                        <ul class="objectives-list" id="objectivesList">
+                            <li>Explore delta front</li>
+                            <li>Analyze sedimentary layers</li>
+                            <li>Collect rock samples</li>
+                        </ul>
+                    </section>
+
+                    <!-- EVA Status -->
+                    <section class="context-section">
+                        <h4>EVA STATUS</h4>
+                        <div class="eva-status" id="evaStatus">
+                            <div class="eva-metric">
+                                <span class="eva-label">Status</span>
+                                <span class="eva-value planning" id="evaState">PLANNING</span>
+                            </div>
+                            <div class="eva-metric">
+                                <span class="eva-label">Suit Time</span>
+                                <span class="eva-value" id="evaTime">8:00:00</span>
+                            </div>
+                            <div class="eva-metric">
+                                <span class="eva-label">Radiation</span>
+                                <span class="eva-value" id="evaRad">0.07 mGy</span>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </aside>
+
+            <!-- Center: Chat Interface -->
+            <section class="chat-panel">
+                <div class="chat-header">
+                    <div class="chat-title">
+                        <span class="ai-indicator" id="aiIndicator"></span>
+                        <span>MARSWALK AI</span>
+                    </div>
+                    <div class="chat-model" id="chatModel">qwen3:1.7b</div>
+                </div>
+
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Welcome Message -->
+                    <div class="message system welcome-message">
+                        <div class="message-avatar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-sender">SYSTEM</span>
+                                <span class="message-time">NOW</span>
+                            </div>
+                            <div class="message-text">
+                                <p>Marswalk AI Assistant initialized. Standing by for mission commands.</p>
+                                <div class="suggested-commands">
+                                    <span class="suggestion" data-cmd="Generate a route to explore the western delta">Generate route to western delta</span>
+                                    <span class="suggestion" data-cmd="Show me the terrain at the delta front">Analyze delta front terrain</span>
+                                    <span class="suggestion" data-cmd="Compare Route A and Route B">Compare routes</span>
+                                    <span class="suggestion" data-cmd="What are the radiation risks for an 8-hour EVA?">Radiation risk assessment</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <div class="input-tools" id="inputTools">
+                        <button class="tool-btn" id="btnAttach" title="Attach document">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05a9 9 0 0 1-12.88 0"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </button>
+                        <button class="tool-btn" id="btnVoice" title="Voice input">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                        </button>
+                    </div>
+                    <form class="chat-form" id="chatForm">
+                        <textarea
+                            class="chat-input"
+                            id="chatInput"
+                            placeholder="Enter mission command or question..."
+                            rows="1"
+                            autocomplete="off"
+                        ></textarea>
+                        <button type="submit" class="send-btn" id="sendBtn" aria-label="Send message">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </button>
+                    </form>
+                    <div class="input-hints">
+                        <span class="hint">Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for new line</span>
+                        <span class="hint" id="toolHint"></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Tool Execution / Map Actions -->
+            <aside class="actions-panel" id="actionsPanel">
+                <div class="panel-header">
+                    <h3>PENDING ACTIONS</h3>
+                    <button class="panel-toggle" id="toggleActions" aria-label="Toggle actions panel">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                </div>
+
+                <div class="panel-content">
+                    <div class="actions-list" id="actionsList">
+                        <div class="actions-placeholder">No pending actions</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Footer Status Bar -->
+        <footer class="status-bar">
+            <div class="status-item">
+                <span class="status-label">MODEL</span>
+                <span class="status-value" id="footerModel">qwen3:1.7b</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">MEMORY</span>
+                <span class="status-value" id="footerMemory">0 MB</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">TOOLS</span>
+                <span class="status-value" id="footerTools">18</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">LATENCY</span>
+                <span class="status-value" id="footerLatency">-- ms</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>SETTINGS</h3>
+                <button class="modal-close" id="closeSettings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <section class="settings-section">
+                    <h4>Model Configuration</h4>
+                    <div class="setting-row">
+                        <label for="modelSelect">Active Model</label>
+                        <select id="modelSelect" class="setting-input">
+                            <option value="qwen3:1.7b">Qwen3 1.7B (Fast)</option>
+                            <option value="qwen3:4b">Qwen3 4B (Balanced)</option>
+                            <option value="llama3.2:latest">Llama 3.2 (General)</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label for="temperature">Temperature</label>
+                        <input type="range" id="temperature" class="setting-slider" min="0" max="1" step="0.1" value="0.7">
+                        <span class="setting-value" id="tempValue">0.7</span>
+                    </div>
+                    <div class="setting-row">
+                        <label for="maxTokens">Max Tokens</label>
+                        <input type="number" id="maxTokens" class="setting-input" value="4000" min="512" max="8192" step="512">
+                    </div>
+                </section>
+
+                <section class="settings-section">
+                    <h4>Assistant Behavior</h4>
+                    <div class="setting-row toggle-row">
+                        <label>
+                            <input type="checkbox" id="enableTools" checked>
+                            <span class="toggle-label">Enable Tool Calling</span>
+                        </label>
+                    </div>
+                    <div class="setting-row toggle-row">
+                        <label>
+                            <input type="checkbox" id="autoExecute" checked>
+                            <span class="toggle-label">Auto-execute Map Actions</span>
+                        </label>
+                    </div>
+                    <div class="setting-row toggle-row">
+                        <label>
+                            <input type="checkbox" id="showThinking">
+                            <span class="toggle-label">Show Thinking Process</span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="settings-section">
+                    <h4>Knowledge Base</h4>
+                    <div class="setting-row">
+                        <button class="btn btn-secondary" id="btnReindex">Re-index Documents</button>
+                    </div>
+                    <div class="setting-row">
+                        <button class="btn btn-secondary" id="btnIngestDocs">Ingest Documents Folder</button>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tool Execution Modal -->
+    <div class="modal" id="toolModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content tool-modal-content">
+            <div class="modal-header">
+                <h3>TOOL EXECUTION</h3>
+                <div class="tool-status" id="toolStatus"></div>
+            </div>
+            <div class="modal-body">
+                <div class="tool-info" id="toolInfo"></div>
+                <div class="tool-result" id="toolResult"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeToolModal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -71,7 +71,7 @@
   // Escape without browser full screen. An open AI assistant panel takes the first Escape (it closes itself).
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape" || !isOn() || document.fullscreenElement) return;
-    if (document.querySelector(".mwai-panel:not([hidden])")) return;
+    if (document.querySelector(".mwai-panel:not([hidden]), .mwx-panel:not([hidden])")) return;
     exit();
   });
   // Switching 2D ↔ 3D while presenting: the newly shown view gets the full area too.

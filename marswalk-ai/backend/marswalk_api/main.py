@@ -57,6 +57,13 @@ class AutoRequest(BaseModel):
     max_slope: float = Field(15, ge=5, le=25)
 
 
+class OptionsRequest(BaseModel):
+    start: Point
+    end: Point
+    max_slope: float = Field(15, ge=5, le=25)
+    objectives: list[str] = Field(["balanced", "min_slope", "shortest"], min_length=1, max_length=3)
+
+
 class EvaRequest(BaseModel):
     out_waypoints: list[Point] = Field(..., min_length=2, max_length=20000)
     back_waypoints: list[Point] = Field(..., min_length=2, max_length=20000)
@@ -227,7 +234,50 @@ async def elevation(lat: float = Query(..., ge=-90, le=90), lon: float = Query(.
             "no_data_reason": None if r["elevation_m"] is not None else "The DEM has no value at this exact point."}
 
 
+@app.get("/api/terrain")
+async def terrain(lat: float = Query(..., ge=-90, le=90), lon: float = Query(..., ge=-180, le=180),
+                  radius: float = Query(150, ge=10, le=2000)):
+    """Terrain statistics in a circle around a point (DEM elevation, Horn slope statistics, relief). Read-only; used by the AI assistant."""
+    _need_terrain()
+
+    def work():
+        with S.lock:
+            return S.terrain.analyze_point(lat, lon, radius_m=radius, max_slope_deg=S.settings.max_slope_deg)
+    r = await run_in_threadpool(work)
+    if r.get("dataset"):
+        r["source_dataset"] = _dataset_label(r["dataset"])
+    r["caution_slope_deg"] = S.settings.caution_slope_deg
+    r["max_slope_deg_limit"] = S.settings.max_slope_deg
+    return r
+
+
 # ------------------------------------------------------------------ routes
+@app.post("/api/route/options")
+async def route_options(body: OptionsRequest):
+    """Up to three alternative routes between two points (balanced / gentlest / most direct), same planner as /api/route/auto."""
+    _need_terrain()
+    bad = [o for o in body.objectives if o not in ("balanced", "min_slope", "shortest")]
+    if bad:
+        raise HTTPException(422, detail=f"Unknown objective(s): {bad}. Use balanced, min_slope, shortest.")
+
+    def work():
+        with S.lock:
+            return S.planner.plan((body.start.lat, body.start.lon), (body.end.lat, body.end.lon), body.max_slope,
+                                  body.objectives, S.settings.caution_slope_deg)
+    try:
+        routes, info = await run_in_threadpool(work)
+    except RouteError as e:
+        raise HTTPException(422, detail=e.message)
+    out = []
+    for r in routes:
+        a = _analysis(r, info["dataset"], body.max_slope)
+        a.update({"objective": r["objective"], "label": r["label"], "waypoints": [{"lat": p[0], "lon": p[1]} for p in r["geometry"]],
+                  "walk_time_out_min": r["metrics"].get("walk_time_out_min"), "weighted_cost": r["metrics"].get("weighted_cost"),
+                  "within_constraints": r["metrics"].get("within_constraints"), "steep_sections": r.get("steep_sections", [])[:4]})
+        out.append(a)
+    return {"routes": out, "dataset": _dataset_label(info["dataset"]), "limit_deg": body.max_slope}
+
+
 @app.post("/api/route/analyze")
 async def route_analyze(body: AnalyzeRequest):
     _need_terrain()

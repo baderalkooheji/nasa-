@@ -48,6 +48,26 @@ def test_elevation(api):
     assert api.get("/api/elevation", params={"lat": 95, "lon": 10}).status_code == 422
 
 
+def test_terrain_statistics_for_the_assistant(api):
+    j = api.get("/api/terrain", params={"lat": 18.4555, "lon": 77.4035, "radius": 200}).json()
+    assert j["data_available"] and j["radius_m"] == 200
+    for k in ("elevation_m", "relief_m", "slope_mean_deg", "slope_p90_deg", "slope_max_deg", "classification", "source_dataset"):
+        assert k in j
+    assert "SIMULATED" in j["source_dataset"]
+    assert api.get("/api/terrain", params={"lat": -10, "lon": 10}).json()["data_available"] is False
+    assert api.get("/api/terrain", params={"lat": 18.45, "lon": 77.40, "radius": 5000}).status_code == 422
+
+
+def test_route_options_for_the_assistant(api):
+    j = api.post("/api/route/options", json={"start": {"lat": HAB["lat"], "lon": HAB["lon"]}, "end": {"lat": S1["lat"], "lon": S1["lon"]}}).json()
+    assert 1 <= len(j["routes"]) <= 3
+    r = j["routes"][0]
+    for k in ("objective", "label", "profile", "waypoints", "distance_m", "max_slope_deg", "walk_time_out_min", "within_constraints"):
+        assert k in r
+    assert api.post("/api/route/options", json={"start": {"lat": HAB["lat"], "lon": HAB["lon"]}, "end": {"lat": S1["lat"], "lon": S1["lon"]},
+                                                "objectives": ["fastest"]}).status_code == 422
+
+
 def test_route_analyze_contract(api):
     j = api.post("/api/route/analyze", json={"waypoints": [{"lat": HAB["lat"], "lon": HAB["lon"]}, {"lat": S1["lat"], "lon": S1["lon"]}],
                                              "route_id": "A"}).json()

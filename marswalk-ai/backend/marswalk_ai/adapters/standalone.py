@@ -410,13 +410,17 @@ def register(registry: CapabilityRegistry, services) -> None:
                          evidence=evidence,
                          limitations=(["No document passed the relevance threshold; there is no documentary evidence for this question in the corpus."]
                                       if not hits else []) +
-                         ["Documents are curated summaries in the Science Engine corpus; check the original source before citing them."])
+                         ["Documents are curated summaries (Mars AI Agent Knowledge Base and the Science Engine corpus); "
+                          "check the original source before citing them."])
 
     registry.register(Capability(
         id="science.search_documents", name="Search scientific documents", category="knowledge", provider=PROVIDER, data_mode="reference",
         availability="available" if kb and kb.available else "unavailable", availability_reason=kb.error if kb else "Not configured.",
-        description="Retrieve passages from the scientific document corpus (Jezero geology, CTX/HiRISE topography, MEDA, RAD, DONKI, EVA mobility) "
-                    "with citations. Use for scientific background; it never provides measurements.",
+        description="Retrieve passages from the knowledge base with citations: general Mars facts (gravity, sol and year length, atmosphere, "
+                    "pressure, temperature), human-exploration challenges (water, low gravity, communication delay, radiation, dust) and "
+                    "engineering responses (water recovery, ice maps, MOXIE oxygen, shielding, autonomy, health), plus Jezero geology, "
+                    "CTX/HiRISE topography, MEDA, RAD, DONKI and EVA mobility. Call it BEFORE answering any Mars science or exploration "
+                    "question. It gives background, never measurements at a map point.",
         input_schema=obj({"query": {"type": "string", "minLength": 2, "maxLength": 300},
                           "top_k": {"type": "integer", "minimum": 1, "maximum": 8, "default": 4},
                           "topic": {"type": "string", "description": "Optional scientific_topic filter"}}, ["query"]),

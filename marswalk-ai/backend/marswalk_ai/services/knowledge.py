@@ -24,6 +24,10 @@ _WORD = re.compile(r"[a-z0-9]+(?:[.-][a-z0-9]+)*")
 _STOP = set("""a an and are as at be by for from has have in is it its of on or that the this to was were with
 which these those their there than then into over under can may not no will would should could about between
 during also such more most other""".split())
+# words that appear across the whole Mars corpus carry no relevance signal ("Mars" alone must not match every document)
+_STOP |= {"mars", "martian"}
+# question words: a heading such as "What MOXIE does not show" must not match every "what …?" question
+_STOP |= {"what", "why", "how", "when", "where", "which", "who", "does", "do", "did", "tell", "me", "you", "we", "us", "our", "your"}
 
 
 def _tokens(text: str) -> list[str]:
@@ -71,20 +75,27 @@ def _chunks(body: str, size: int = 900, overlap: int = 150) -> list[tuple[str, s
 
 class KnowledgeBase:
     def __init__(self, directory: str | None):
+        """directory: one folder, or several separated by ";" (e.g. the Mars AI Agent Knowledge Base + the engine's documents)."""
         self.directory = directory
         self.chunks: list[dict] = []
         self.error: str | None = None
         if not directory:
             self.error = "No knowledge directory configured (set KNOWLEDGE_DIR)."
             return
-        d = Path(directory)
-        if not d.is_dir():
+        dirs = [Path(p.strip()) for p in directory.split(";") if p.strip()]
+        missing = [str(d) for d in dirs if not d.is_dir()]
+        found = [d for d in dirs if d.is_dir()]
+        if not found:
             self.error = f"Knowledge directory not found: {directory}"
             return
-        for f in sorted(d.glob("*.md")):
-            meta, body = _front_matter(f.read_text(encoding="utf-8", errors="replace"))
-            for j, (heading, text) in enumerate(_chunks(body)):
-                self.chunks.append({"chunk_id": f"{f.stem}#{j}", "file": f.name, "section": heading, "text": text, **meta})
+        self.missing_dirs = missing                     # reported, but the folders that exist are still used
+        for d in found:
+            for f in sorted(d.glob("*.md")):
+                if f.name.lower() == "readme.md":
+                    continue
+                meta, body = _front_matter(f.read_text(encoding="utf-8", errors="replace"))
+                for j, (heading, text) in enumerate(_chunks(body)):
+                    self.chunks.append({"chunk_id": f"{f.stem}#{j}", "file": f.name, "section": heading, "text": text, **meta})
         if not self.chunks:
             self.error = f"No Markdown documents found in {directory}"
             return
@@ -141,5 +152,6 @@ class KnowledgeBase:
                 "source_url": c.get("source_url"), "organization": c.get("organization"),
                 "document_type": c.get("document_type"), "reliability_category": c.get("reliability_category"),
                 "score": round(float(scores[i]), 3), "text": c["text"][:700],
+                "additional_sources": [u.strip() for u in (c.get("additional_sources") or "").split("|") if u.strip()],
             })
         return out

@@ -95,6 +95,21 @@ class RulePlanner:
         slots.update(layer=layer, layer_score=ls, section=section, section_score=ss)
         return slots
 
+    _MISSION_CUES = re.compile(r"\b(route|routes|path|eva|walk|traverse|this|here|there|selected|habitat|stop|stops|rover|my|our|"
+                               r"current|currently|now|today|tonight|forecast|mission|delta|crater|jezero|point|location|spot)\b")
+
+    def _is_general_knowledge(self, t: str) -> bool:
+        """A question whose best knowledge-base match is a general Mars document and that names nothing mission-specific."""
+        if self._MISSION_CUES.search(t):
+            return False
+        if not (t.endswith("?") or _has(t, r"^(what|why|how|is|are|can|could|does|do|will|would|should|which|when|tell me|explain|describe)\b")):
+            return False
+        kb = getattr(self.services, "knowledge", None)
+        if not kb or not getattr(kb, "available", False):
+            return False
+        hits = kb.search(t, 1)
+        return bool(hits) and hits[0]["score"] >= 0.18 and str(hits[0].get("chunk_id", "")).startswith("mars_kb_")
+
     def parse(self, text: str, session) -> Intent:
         t = " ".join(text.lower().strip().split())
         s = self._slots(t, session)
@@ -141,6 +156,10 @@ class RulePlanner:
         if _has(t, r"\b(route|path|way|traverse)\b") and _has(t, r"\b(find|plan|generate|get|give|create|calculate|make|best|show|need|want|compute|suggest|recommend)\b") \
                 or _has(t, r"how (do|can|would) i (get|walk|go|travel) to|take me to|navigate to|walk to"):
             return I("route_find", 0.85)
+        # General Mars knowledge ("How long is a day on Mars?", "Can astronauts make oxygen?") goes to the knowledge base before the
+        # mission tools that share its words (EVA time, MEDA weather, radiation dose), unless the question is about this mission.
+        if self._is_general_knowledge(t):
+            return I("science_question", 0.75)
         # specific science topics before the generic EVA match ("radiation dose for this EVA" is a radiation question)
         if _has(t, r"\b(radiation|dose|cosmic ray|rad)\b"):
             return I("radiation", 0.85)
@@ -740,8 +759,14 @@ class RulePlanner:
         hits = res.data.get("results") or []
         if not hits:
             return "I found nothing relevant in the scientific document corpus, and I won't answer without a source.", "partial"
-        lines = [f"[{h['citation_key']}] {h['title']} — {h['section']}: {first_sentence(h['text'])}" for h in hits]
-        return ("Relevant passages from the scientific corpus (quoted, not interpreted, since no LLM is configured):\n" + "\n".join(lines)), "success"
+        top = hits[0]["score"]
+        hits = [h for h in hits if h["score"] >= 0.6 * top]          # only passages about as relevant as the best one
+        best, rest = hits[0], hits[1:]
+        lines = [f"• [{best['citation_key']}] {first_sentences(best['text'], 2)}"]
+        lines += [f"• [{h['citation_key']}] {first_sentence(h['text'])}" for h in rest]
+        srcs = "; ".join(dict.fromkeys(f"{h['organization'] or h['title']}" for h in hits))
+        return ("From the knowledge base (quoted, not interpreted, since no LLM is configured):\n" + "\n".join(lines)
+                + f"\nSource: {srcs}. Open “Sources” below for the links."), "success"
 
     async def _do_unknown(self, intent, text, orch):
         return ("I'm not sure how to map that to an available mission capability. I can find and compare routes, analyse terrain, "
@@ -752,6 +777,12 @@ def first_sentence(text: str) -> str:
     t = " ".join(text.replace("*", "").split())
     m = re.search(r"(.{30,280}?[.!?])(\s|$)", t)
     return m.group(1) if m else t[:280]
+
+
+def first_sentences(text: str, n: int) -> str:
+    t = " ".join(text.replace("*", "").split())
+    parts = re.findall(r".{20,320}?[.!?](?=\s|$)", t)
+    return " ".join(parts[:n]) if parts else t[:320]
 
 
 def route_summary(r: dict) -> dict:
