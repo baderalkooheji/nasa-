@@ -261,9 +261,36 @@ def _command_routes(t: str) -> List[tuple]:
     return out
 
 
+_ROUTE_REQ = re.compile(r"\b(generate|plan|find|make|create|give|get|build|compute|calculate|suggest|show me|need|want)\b.*\b(route|routes|path|paths|traverse|walk|options?|alternatives?)\b"
+                        r"|\b(route|path|way)\s+(to|from)\b")
+
+
+def _route_request(t: str) -> Optional[Dict[str, Any]]:
+    """'plan a route to the delta front', 'from the habitat to stop 2', 'three options to stop 3' → generate_route arguments.
+    {} when it is a route request without a destination."""
+    if not _ROUTE_REQ.search(t) or re.search(r"\bcompare\b", t):
+        return None
+    args: Dict[str, Any] = {}
+    m = re.search(r"\bfrom\s+(?:the\s+)?(.+?)\s+to\s+(?:the\s+)?(.+?)(?:\s+(?:with|and|avoiding|under|below)\b|[.?!]|$)", t)
+    if m:
+        args.update(start=m.group(1).strip(), destination=m.group(2).strip())
+    else:
+        m = re.search(r"\bto\s+(?:the\s+)?(.+?)(?:\s+(?:from|with|and|avoiding|under|below)\b|[.?!]|$)", t)
+        if m and not re.fullmatch(r"(explore|go|walk|visit|see)( .*)?", m.group(1).strip()):
+            args["destination"] = m.group(1).strip()
+    if re.search(r"\b(options|alternatives|three|3 routes|several|different routes|multiple)\b", t):
+        args["alternatives"] = True
+    m = re.search(r"\b(\d{1,2})\s*(?:°|deg|degrees)\b", t)
+    if m and 5 <= int(m.group(1)) <= 25:
+        args["max_slope"] = int(m.group(1))
+    return args
+
+
 async def _preroute(message: str) -> List[tuple]:
-    import re
     t = message.lower().strip()
+    ra = _route_request(t)
+    if ra is not None:
+        return [("generate_route", ra)] if ra.get("destination") else [("choose_destination", {})]
     found = [(tool, dict(args)) for pat, unless, tool, args in _ROUTES if re.search(pat, t) and not re.search(unless, t)]
     found += _command_routes(t)
     if any(n == "save_to_mission_log" for n, _ in found):          # "save this … to the log" is not a request to read the log
@@ -275,7 +302,25 @@ async def _preroute(message: str) -> List[tuple]:
 # Requests answered directly from the tool result, without the model: their results need no interpretation, and a small model
 # only risks garbling them (comparisons) while adding 20-80 s on a CPU.
 DIRECT = {"change_map_layer", "save_to_mission_log", "zoom_map", "navigate_application", "start_route_journey", "compare_routes",
-          "get_mission_log", "retrieve_mission_information", "estimate_eva", "analyse_environment"}
+          "get_mission_log", "retrieve_mission_information", "estimate_eva", "analyse_environment", "generate_route", "choose_destination"}
+
+
+async def _choose_destination() -> Dict[str, Any]:
+    """Route request without a destination: offer the real candidate sites (data/stops.json) instead of guessing."""
+    try:
+        places = await _places()
+    except MarswalkUnavailable as e:
+        return {"success": False, "data": None, "error": str(e), "metadata": {}}
+    return {"success": True, "error": None, "metadata": {},
+            "data": {"sites": [{"id": p["id"], "name": p["name"], "reason": p.get("reason")} for p in places if p["id"] != "habitat"]}}
+
+
+def _route_line(r: Dict[str, Any]) -> str:
+    within = "meets" if r.get("over_slope_limit") is False else "exceeds in places" if r.get("over_slope_limit") else "?"
+    return (f"{r['route_id']} {r.get('label')}: {r.get('distance_m')} m, max slope {r.get('max_slope_deg')}° "
+            f"(mean {r.get('avg_slope_deg')}°), climb +{r.get('elevation_gain_m')} m / −{r.get('elevation_loss_m')} m"
+            + (f", walk ≈ {round(r['walk_time_out_min'], 1)} min" if r.get("walk_time_out_min") is not None else "")
+            + f"; {within} the {r.get('slope_limit_deg')}° limit")
 
 
 def _direct_answer(executed: List[Dict[str, Any]]) -> str:
@@ -284,6 +329,22 @@ def _direct_answer(executed: List[Dict[str, Any]]) -> str:
         d = e.get("data") or {}
         if not e["success"]:
             lines.append(f"Could not do that: {e['error']}")
+        elif e["name"] == "choose_destination":
+            lines.append("Where should the route go? Candidate sites (real Perseverance positions):")
+            lines += [f"• {s['id']}: {s['name']} – {s.get('reason') or ''}" for s in d.get("sites", [])]
+            lines.append("For example: “Plan a route to stop 1”, or “Give me three route options to stop 3”.")
+        elif e["name"] == "generate_route":
+            rs = d.get("routes") or []
+            if len(rs) > 1:
+                lines.append(f"Planned {len(rs)} route options from {rs[0].get('from')} to {rs[0].get('to')} on the NASA elevation model:")
+                lines += [f"• {_route_line(r)}" for r in rs]
+                lines.append(f"Recommended: {d.get('recommended_route_id')} ({d.get('why_recommended')}). Sending it to the map as Route B.")
+            elif rs:
+                r = rs[0]
+                lines.append(f"Planned a route from {r.get('from')} to {r.get('to')} on the NASA elevation model: {_route_line(r)}.")
+                lines.append("Sending it to the map as Route B (elevation profile below the map).")
+            lines.append("Distances and slopes are calculated from the DEM; walking time is a model estimate; the slope limit is "
+                         "project-defined. Meeting it does not make a route safe (boulders and small ledges are not resolved).")
         elif e["name"] == "retrieve_mission_information" and d.get("sol") is not None:
             lines.append(f"Perseverance's latest localisation in the NASA file is sol {d['sol']}: {d['lat']:.5f}°N {d['lon']:.5f}°E, "
                          f"elevation {round(d['elev_geoid_m'], 1) if d.get('elev_geoid_m') is not None else 'n/a'} m (areoid), after "
@@ -401,17 +462,22 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         # passages) goes into THIS turn's user message. (Qwen's template merges all system messages into the top block,
         # so they must not be sent as extra system messages.)
         messages: List[Dict[str, Any]] = [{"role": "system", "content": build_system_prompt(places)}]
-        # history without the server's own "(Note: …)" corrections, so the model does not learn to copy them
-        messages += [{"role": m.role, "content": re.sub(r"\n?\(Note: [^)]*\)", "", m.content).strip()}
-                     for m in reversed(history) if m.role in ("user", "assistant") and m.content]
+        # history: replies the server had to correct ("(Note: …)") are left out entirely (with their question), so a small model
+        # cannot copy a failed answer such as "Sending it to the map." into the next turn
+        hist = [m for m in reversed(history) if m.role in ("user", "assistant") and m.content]
+        for i, m in enumerate(hist):
+            nxt = hist[i + 1] if i + 1 < len(hist) else None
+            if (m.role == "assistant" and "(Note:" in m.content) or (m.role == "user" and nxt and nxt.role == "assistant" and "(Note:" in nxt.content):
+                continue
+            messages.append({"role": m.role, "content": m.content})
         context_parts = [build_state_message(page, mem_summary)]
 
         # Mission requests with an unambiguous tool: run it first and give the model the real result to explain.
         pre = await _preroute(request.message) if tools_allowed(request) else []
         for name, args in pre:
-            res = await tool_registry.execute(name, args)
+            res = (await _choose_destination()) if name == "choose_destination" else (await tool_registry.execute(name, args)).to_dict()
             calls.append(ToolCallRequest(name=name, arguments=args, id=f"auto_{name}"))
-            executed.append({"name": name, "arguments": args, **res.to_dict()})
+            executed.append({"name": name, "arguments": args, **res})
         if pre:
             context_parts.append("Tool results already obtained for this request (real data; explain them, keep their labels, and do not "
                                  "change or add numbers; a 'map' entry means the action was SENT to the map, not yet confirmed):\n"
@@ -467,7 +533,8 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
             final = _fallback_answer(executed) if executed else "I have no answer for that."
         final = _check_citations(final, executed)
         final = _check_action_claims(final, executed, run.actions)
-        final = _check_safety_language(final, executed)
+        if not direct:                       # template answers already carry the caveat
+            final = _check_safety_language(final, executed)
     except LLMUnavailable as e:
         error = "llm_unavailable"
         final = (f"The local AI model is not available: {e}\n"

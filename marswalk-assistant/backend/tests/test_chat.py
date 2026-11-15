@@ -41,7 +41,7 @@ def test_tool_results_go_back_to_the_model_and_actions_to_the_page(client, monke
     llm = ScriptedLLM([ToolCall(name="generate_route", arguments={"destination": "delta front"}),
                        "R1 is 1234 m long with a maximum slope of 14.8Â° (calculated from the DEM). Sending it to the map."])
     monkeypatch.setattr(main, "llm_client", llm)
-    r = client.post("/chat", json={"message": "Plan a route to the delta front", "client_context": PAGE}).json()
+    r = client.post("/chat", json={"message": "Delta front, please, with the planner", "client_context": PAGE}).json()
     assert r["message"].startswith("R1 is 1234 m")
     gi = [c["name"] for c in r["tool_calls"]].index("generate_route")
     assert r["tool_results"][gi]["success"]
@@ -123,7 +123,7 @@ def test_routing_keeps_general_questions_on_the_knowledge_base():
     assert pr("How long would that EVA take?") == ["estimate_eva"]
     assert pr("How long is a day on Mars?") == []
     assert pr("Where is the rover?") == ["retrieve_mission_information"]
-    assert pr("Plan a route to the rover") == []
+    assert pr("Plan a route to the rover") == ["generate_route"]
     assert pr("Compare the routes") == ["compare_routes"]
     assert pr("Give me three route options to stop 3 and compare them") == []
     assert pr("Save this location to the log") == ["save_to_mission_log"]
@@ -138,7 +138,7 @@ def test_commands_are_routed_with_arguments():
     assert pr("Zoom to Jezero crater") == [("zoom_map", {"location": "jezero crater"})]
     assert pr("Open the 3D globe") == [("navigate_application", {"target": "3d"})]
     assert pr("Start the journey") == [("start_route_journey", {"route": "B"})]
-    assert pr("Plan a route from the habitat to the delta front") == []
+    assert pr("Plan a route from the habitat to the delta front") == [("generate_route", {"start": "habitat", "destination": "delta front"})]
 
 
 def test_pretended_actions_are_flagged(client, monkeypatch):
@@ -195,3 +195,14 @@ def test_citation_numbers_are_unique_within_a_turn(client):
     import asyncio
     a, b = asyncio.run(_two_searches())
     assert a and b and not set(a) & set(b)
+
+
+def test_route_requests_run_the_planner_directly(client, monkeypatch):
+    silent = ScriptedLLM([])
+    monkeypatch.setattr(main, "llm_client", silent)
+    r = client.post("/chat", json={"message": "generate a route to delta front", "client_context": PAGE}).json()
+    assert r["actions"][0]["type"] == "display_route" and "1234.0 m" in r["message"] and not silent.sent
+    r = client.post("/chat", json={"message": "Give me three route options from the habitat to stop 3", "client_context": PAGE}).json()
+    assert "Planned 3 route options" in r["message"] and "Recommended: R2" in r["message"]
+    r = client.post("/chat", json={"message": "generate me a new route exploration site", "client_context": PAGE}).json()
+    assert "Where should the route go?" in r["message"] and "Delta front" in r["message"] and not r["actions"]
