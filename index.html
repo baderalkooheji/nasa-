@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="css/globe.css">
 <link rel="stylesheet" href="css/combined.css">
 <link rel="stylesheet" href="css/journey.css">
+<link rel="stylesheet" href="css/presentation.css">
 </head>
 <body>
 
@@ -37,6 +38,12 @@
     <button id="mode2d" class="mode active" type="button">2D Map</button>
     <button id="mode3d" class="mode" type="button">3D Globe</button>
   </nav>
+  <button id="btnPresent" class="present-btn" type="button" aria-pressed="false"
+          title="Full-screen view of the active 2D map or 3D globe (Esc to exit)">
+    <svg class="pi-enter" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    <svg class="pi-exit" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+    <span class="present-label">Presentation Mode</span>
+  </button>
   <div id="sw" class="badge" title="NASA DONKI space weather">Space weather: checking…</div>
   <button id="btnChat" type="button">AI assistant</button>
   <div class="bell-wrap">
@@ -310,6 +317,7 @@
 <script src="JS/nasa-config.js"></script>
 <script src="JS/map.js"></script>
 <script src="js/journey.js"></script>
+<script src="js/presentation.js"></script>
 <script type="module" src="js/app.js"></script>
 <script type="module" src="JS/integration.js"></script>
 <script type="module" src="js/journey3d.js"></script>
