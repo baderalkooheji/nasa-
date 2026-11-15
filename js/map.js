@@ -612,14 +612,16 @@ onState(["eva"], s => {
 /* ---------- 11. Space weather ---------- */
 async function loadSpaceWeather() {
   const el = $("sw");
+  el.style.display = "none";                 // shown only when NASA DONKI data is actually available
   try {
     const w = await api("/api/spaceweather");
+    if (w.status === "unknown") return;
     el.className = "badge " + w.status;
-    if (w.status === "unknown") { el.textContent = "Space weather: unavailable"; notify("unavailable", "Space weather (NASA DONKI) could not be reached."); return; }
     el.textContent = `Space weather: ${w.status} · ${w.flares.length} flares, ${w.sep_events.length} SEP (7 d)${w.cached ? " · saved copy" : ""}`;
     el.title = `${w.rule}. Source: ${w.source || "NASA DONKI"}`;
+    el.style.display = "";
     if (w.status === "caution") notify("warning", "Solar particle activity in the last 7 days (project-defined rule).");
-  } catch { el.textContent = "Space weather: unavailable"; }
+  } catch { /* backend unreachable: keep the badge hidden */ }
 }
 
 /* ---------- 12. PLACEHOLDERS wired to future backend routes ---------- */
