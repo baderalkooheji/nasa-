@@ -59,7 +59,6 @@
       <button role="tab" data-tab="layers" class="tab active" type="button">Layers</button>
       <button role="tab" data-tab="route" class="tab" type="button">Route</button>
       <button role="tab" data-tab="env" class="tab" type="button">Environment</button>
-      <button role="tab" data-tab="records" class="tab" type="button">Mission log</button>
     </nav>
 
     <!-- Layers -->
@@ -99,13 +98,6 @@
         <h3>Radiation reference</h3>
         <p class="small">0.21 mGy/day galactic cosmic ray dose, <b>measured at Gale crater</b> by Curiosity RAD. Historical observation from another site, used as context for Jezero.</p>
       </div>
-    </section>
-
-    <!-- Mission log -->
-    <section id="tab-records" class="tabpane" hidden>
-      <h2>Mission log</h2>
-      <input id="recordSearch" type="search" placeholder="Search records" aria-label="Search records">
-      <ul id="recordList" class="records"><li class="muted small">No records yet. Use "Save to log" after an analysis.</li></ul>
     </section>
   </aside>
 
@@ -291,8 +283,6 @@
     <h2>Selected location</h2>
     <div id="info" class="muted">Click the map or a stop.</div>
     <div id="photos" class="photos" hidden></div>
-    <button id="btnSaveRecord" type="button" disabled>Save to log</button>
-    <p id="saveHint" class="muted small">Click a point on the map (or a stop) first. "Save to log" stores that point with its elevation and slope in the Mission log tab, where you can search it and click it to fly back.</p>
   </aside>
 </div>
 

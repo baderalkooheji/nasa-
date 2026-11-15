@@ -392,8 +392,6 @@ map.on("click", ev => { if (!drawing) select({ lat: ev.latlng.lat, lon: ev.latln
 let selMarker = null;
 onState(["selected"], s => {
   const p = s.selected;
-  $("btnSaveRecord").disabled = !p;
-  if ($("saveHint")) $("saveHint").hidden = !!p;
   if (selMarker) { map.removeLayer(selMarker); selMarker = null; }
   if (!p) { $("info").innerHTML = "Click the map or a stop."; $("photos").hidden = true; return; }
   if (p.kind === "point") selMarker = L.circleMarker([p.lat, p.lon], { radius: 7, color: "#fff", weight: 2, fillOpacity: 0 }).addTo(map);
@@ -669,45 +667,41 @@ async function loadEnvironment() {
   } catch { /* keep the placeholder text in index.html */ }
 }
 
-/* 12c. Mission log → POST /api/records, GET /api/records?q=  (Integration role, SQLite) */
-$("btnSaveRecord").onclick = async () => {
-  const p = AppState.selected;
-  if (!p) return;
-  // the record describes the selected point itself; the current route (if any) is added as context
-  const r = AppState.routeB || AppState.routeA, rName = AppState.routeB ? "Route B" : "Route A";
-  const record = {
-    label: p.name || `Point ${fmtLL(p.lat, p.lon)}`, lat: p.lat, lon: p.lon,
-    analysis_type: p.kind === "point" ? "location" : "stop",
-    result: `Elevation ${p.elevation_m ?? "n/a"} m, slope ${p.slope_deg ?? "n/a"}°`
-      + (r ? ` · ${rName} ${fmtKm(r.distance_m)}, max ${r.max_slope_deg}°` : ""),
-    elevation_m: p.elevation_m, slope_deg: p.slope_deg, dataset: p.source_dataset,
-    status: p.data_available ? "complete" : "data unavailable",
-  };
-  try {
-    await api("/api/records", record);
-    notify("done", `Saved "${record.label}" — open the Mission log tab to see it.`);
-    loadRecords($("recordSearch").value);
-    const tab = document.querySelector('.tab[data-tab="records"]');   // point at where it went
-    if (tab) { tab.classList.add("flash"); setTimeout(() => tab.classList.remove("flash"), 1600); }
-  }
-  catch (err) { notify("unavailable", err.status === 404 || err.status === 405 ? "Mission log not connected yet (backend /api/records not built)." : "Could not save: " + err.message); }
-};
-async function loadRecords(q = "") {
-  try {
-    const rows = await api("/api/records?q=" + encodeURIComponent(q));
-    $("recordList").innerHTML = rows.length ? rows.map(r => `<li data-lat="${r.lat}" data-lon="${r.lon}">
-      <b>${esc(r.label)}</b> <span class="tag">${esc(r.analysis_type)}</span><br>
-      <span class="small">${esc(r.result)}</span><br><span class="muted small">${esc(r.created_at || "")} · ${esc(r.status)}</span></li>`).join("")
-      : `<li class="muted small">No matching records.</li>`;
-  } catch { /* backend not ready: keep placeholder */ }
-}
-$("recordSearch").oninput = e => loadRecords(e.target.value);
-$("recordList").onclick = e => {               // open a record's location on the map
-  const li = e.target.closest("li[data-lat]");
-  if (!li) return;
-  const lat = +li.dataset.lat, lon = +li.dataset.lon;
-  map.setView([lat, lon], Math.max(map.getZoom(), 14));
-  select({ lat, lon, kind: "point" });
+/* 12c. Mission log → POST /api/records, GET /api/records?q=  (Integration role, SQLite)
+   The log has no panel of its own: it lives in the Marswalk AI assistant ("Mission log" view and chat),
+   which uses these functions. */
+window.MarswalkLog = {
+  /** The point a save would store, or null when nothing is selected. */
+  selected() {
+    const p = AppState.selected;
+    return p ? { label: p.name || `Point ${fmtLL(p.lat, p.lon)}`, lat: p.lat, lon: p.lon, elevation_m: p.elevation_m ?? null, slope_deg: p.slope_deg ?? null } : null;
+  },
+  /** Save the selected point (with the current route as context). Resolves to the record sent. */
+  async save() {
+    const p = AppState.selected;
+    if (!p) throw new Error("Select a point on the map (or a stop) first.");
+    const r = AppState.routeB || AppState.routeA, rName = AppState.routeB ? "Route B" : "Route A";
+    const record = {
+      label: p.name || `Point ${fmtLL(p.lat, p.lon)}`, lat: p.lat, lon: p.lon,
+      analysis_type: p.kind === "point" ? "location" : "stop",
+      result: `Elevation ${p.elevation_m ?? "n/a"} m, slope ${p.slope_deg ?? "n/a"}°`
+        + (r ? ` · ${rName} ${fmtKm(r.distance_m)}, max ${r.max_slope_deg}°` : ""),
+      elevation_m: p.elevation_m, slope_deg: p.slope_deg, dataset: p.source_dataset,
+      status: p.data_available ? "complete" : "data unavailable",
+    };
+    try { await api("/api/records", record); }
+    catch (err) { throw new Error(err.status === 404 || err.status === 405 ? "the mission log backend (/api/records) is not available" : err.message); }
+    notify("done", `Saved "${record.label}" to the mission log.`);
+    return record;
+  },
+  /** Saved records, newest first; q filters by text. */
+  list(q = "") { return api("/api/records?q=" + encodeURIComponent(q)); },
+  /** Fly the 2D map to a record and select it again. */
+  open(rec) {
+    if (window.setView && !$("view3d").hidden) window.setView("2d");
+    map.setView([rec.lat, rec.lon], Math.max(map.getZoom(), 15));
+    return select({ lat: rec.lat, lon: rec.lon, kind: "point" });
+  },
 };
 
 /* 12d. 3D view (optional). State stays in AppState, so returning to 2D loses nothing.
@@ -726,7 +720,6 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
   document.querySelectorAll(".tabpane").forEach(p => { p.hidden = p.id !== "tab-" + t.dataset.tab; });
   if (t.dataset.tab === "env") loadEnvironment();
-  if (t.dataset.tab === "records") loadRecords($("recordSearch").value);
   setTimeout(() => map.invalidateSize(), 50);
 });
 

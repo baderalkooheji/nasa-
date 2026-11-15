@@ -79,3 +79,6 @@ body { display: flex; flex-direction: column; }
   .viewport-3d { height: 70vh; }
   .legend { max-width: none; }
 }
+
+/* Three sidebar tabs (the mission log moved into the AI assistant): one row */
+.side .tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }

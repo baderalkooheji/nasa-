@@ -62,11 +62,6 @@
 .jr-start-row select { flex: 1; min-height: 40px; border-radius: 8px; border: 1px solid #2E3A49; background: #0B0E13; color: #E6EAF0; padding: 0 8px; }
 .jr-start-row button { white-space: nowrap; background: #FF8A3D; color: #1a0d04; }
 
-/* "Save to log" feedback: the Mission log tab pulses once */
-.tab.flash { animation: tab-flash 1.6s ease-out; }
-@keyframes tab-flash { 0%, 40% { background: rgba(255, 138, 61, .35); border-color: #FF8A3D; } 100% { background: transparent; } }
-#saveHint { margin: 8px 0 0; line-height: 1.45; }
-
 /* keep the 3D "Explore Jezero" button out of the way while a journey runs */
 .journey-active .viewport-3d .cta { display: none; }
 @media (prefers-reduced-motion: reduce) { .jr-pulse { animation: none; } }

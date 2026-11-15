@@ -58,7 +58,7 @@
     { id: "layers", label: "Layers tab", keywords: ["layers tab", "layer panel"], tab: "layers" },
     { id: "route", label: "Route planner tab", keywords: ["route planner", "route tab", "route panel", "planner"], tab: "route" },
     { id: "env", label: "Environment tab", keywords: ["environment panel", "environmental panel", "environment tab", "weather panel"], tab: "env" },
-    { id: "records", label: "Mission log", keywords: ["mission log", "mission history", "history", "records"], tab: "records" },
+    { id: "records", label: "Mission log", keywords: ["mission log", "mission history", "history", "records"], assistantLog: true },
     { id: "view_2d", label: "2D map", keywords: ["main map", "2d map", "map view", "2d view"], view: "2d" },
     { id: "view_3d", label: "3D globe", keywords: ["3d globe", "globe", "3d view", "3d map"], view: "3d" },
   ];
@@ -122,6 +122,11 @@
       const s = SECTIONS.find((x) => x.id === p.section_id);
       if (!s) throw new Error(`unknown section ${p.section_id}`);
       if (s.view) { if (!window.setView) throw new Error("view switching not available"); window.setView(s.view); return `${s.label} shown`; }
+      if (s.assistantLog) {                                 // the mission log lives inside this assistant
+        if (!window.marswalkAI || !window.MarswalkLog) throw new Error("mission log not available");
+        window.marswalkAI.assistant.showRecords(true);
+        return "Mission log opened in the assistant";
+      }
       const tab = document.querySelector(`.tab[data-tab="${s.tab}"]`);
       if (!tab) throw new Error(`tab ${s.tab} not found`);
       if (is3d() && window.setView) window.setView("2d");
@@ -153,7 +158,10 @@
     },
   });
 
-  const assistant = MarswalkAssistant.mount({ apiBase: API, bridge });
+  // Mission log: saved by the Marswalk backend (/api/records) through js/map.js, shown inside the assistant.
+  const assistant = MarswalkAssistant.mount({ apiBase: API, bridge, missionLog: window.MarswalkLog || null });
+  // keep the "Save selected location" box in step with clicks on the map
+  addEventListener("appstate", (e) => { if (e.detail && e.detail.changed.includes("selected")) assistant.refreshSelection(); });
   // One AI entry point: the Marswalk AI orb. The old top-bar button and its drawer are hidden while the
   // assistant is active (they remain the fallback when the assistant server is not running).
   const btn = document.getElementById("btnChat");

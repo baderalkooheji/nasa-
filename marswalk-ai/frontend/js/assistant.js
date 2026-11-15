@@ -29,6 +29,7 @@
       this.api = (opts.apiBase || "").replace(/\/$/, "");
       this.bridge = opts.bridge;
       this.onResponse = opts.onResponse || (() => {});
+      this.missionLog = opts.missionLog || null;   // { selected(), save(), list(q), open(rec) } from the host page
       this.sessionId = null;
       this.info = null;
       this.busy = false;
@@ -49,6 +50,7 @@
             <div class="mwai-title"><span class="mwai-dot" aria-hidden="true"></span><b>${esc(title)}</b>
               <span class="mwai-sub" data-ref="status">connecting…</span></div>
             <div class="mwai-head-btns">
+              <button type="button" class="mwai-icon mwai-logbtn" data-ref="logbtn" title="Mission log" aria-label="Mission log" aria-pressed="false" hidden>☰ Log</button>
               <button type="button" class="mwai-icon" data-ref="sources" title="Data sources" aria-label="Show data sources">◎</button>
               <button type="button" class="mwai-icon" data-ref="reset" title="New conversation" aria-label="New conversation">↺</button>
               <button type="button" class="mwai-icon" data-ref="close" title="Close" aria-label="Close assistant">✕</button>
@@ -56,6 +58,15 @@
           </header>
           <div class="mwai-sourcebar" data-ref="sourcebar" hidden></div>
           <div class="mwai-log" data-ref="log" aria-live="polite"></div>
+          <div class="mwai-records" data-ref="records" hidden>
+            <div class="mwai-rec-save">
+              <div class="mwai-rec-sel" data-ref="recsel"></div>
+              <button type="button" class="mwai-btn mwai-primary" data-ref="recsave">Save selected location</button>
+            </div>
+            <input type="search" class="mwai-rec-search" data-ref="recq" placeholder="Search the mission log" aria-label="Search the mission log">
+            <ul class="mwai-rec-list" data-ref="reclist"></ul>
+            <button type="button" class="mwai-btn mwai-rec-back" data-ref="recback">← Back to chat</button>
+          </div>
           <div class="mwai-suggest" data-ref="suggest"></div>
           <form class="mwai-form" data-ref="form">
             <input type="text" data-ref="input" placeholder="Ask Marswalk AI…" aria-label="Message to Marswalk AI" autocomplete="off" maxlength="2000">
@@ -70,6 +81,19 @@
       $("reset").onclick = () => this._connect(true);
       $("sources").onclick = () => { this.ui.sourcebar.hidden = !this.ui.sourcebar.hidden; };
       this.ui.form.onsubmit = (e) => { e.preventDefault(); const q = this.ui.input.value.trim(); if (q) { this.ui.input.value = ""; this.ask(q); } };
+      Object.assign(this.ui, { logbtn: $("logbtn"), records: $("records"), recsel: $("recsel"), recsave: $("recsave"), recq: $("recq"), reclist: $("reclist") });
+      if (this.missionLog) {
+        this.ui.logbtn.hidden = false;
+        this.ui.logbtn.onclick = () => this.showRecords(this.ui.records.hidden);
+        $("recback").onclick = () => this.showRecords(false);
+        this.ui.recsave.onclick = () => this.saveLocation();
+        let t = 0;
+        this.ui.recq.oninput = () => { clearTimeout(t); t = setTimeout(() => this.loadRecords(), 200); };
+        this.ui.reclist.onclick = (e) => {
+          const li = e.target.closest("li[data-i]");
+          if (li && this._rows) this.missionLog.open(this._rows[+li.dataset.i]);
+        };
+      }
       document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.ui.panel.hidden) this.toggle(false); });
       this._initDrag(root.querySelector(".mwai-panel"), root.querySelector(".mwai-head"));
       return root;
@@ -130,6 +154,75 @@
       if (open) setTimeout(() => this.ui.input.focus(), 30);
     }
 
+    // ------------------------------------------------------------------ mission log (records stored by the host page's backend)
+    showRecords(show) {
+      if (!this.missionLog) return;
+      this.toggle(true);
+      this.ui.records.hidden = !show;
+      [this.ui.log, this.ui.suggest, this.ui.form].forEach((n) => n.classList.toggle("mwai-gone", show));
+      this.ui.logbtn.setAttribute("aria-pressed", String(show));
+      this.ui.logbtn.classList.toggle("mwai-on", show);
+      if (show) { this.refreshSelection(); this.loadRecords(); }
+    }
+
+    refreshSelection() {
+      if (!this.missionLog) return;
+      const s = this.missionLog.selected();
+      this.ui.recsel.innerHTML = s
+        ? `<b>${esc(s.label)}</b><div class="mwai-muted">${(+s.lat).toFixed(5)}°N ${(+s.lon).toFixed(5)}°E · ${s.elevation_m != null ? esc(s.elevation_m) + " m" : "no elevation"} · slope ${s.slope_deg != null ? esc(s.slope_deg) + "°" : "n/a"}</div>`
+        : `<span class="mwai-muted">Click a point on the map (or a stop), then save it here.</span>`;
+      this.ui.recsave.disabled = !s;
+    }
+
+    async loadRecords() {
+      const list = this.ui.reclist;
+      try {
+        const rows = await this.missionLog.list(this.ui.recq.value.trim());
+        this._rows = rows;
+        list.innerHTML = rows.length ? rows.map((r, i) => `<li data-i="${i}" title="Show on the map">
+            <div class="mwai-rec-h"><b>${esc(r.label)}</b><span class="mwai-tag">${esc(r.analysis_type)}</span></div>
+            <div class="mwai-rec-r">${esc(r.result)}</div>
+            <div class="mwai-muted mwai-rec-t">${esc(r.created_at || "")} · ${esc(r.status)}</div></li>`).join("")
+          : `<li class="mwai-rec-empty mwai-muted">${this.ui.recq.value.trim() ? "No matching entries." : "No entries yet. Select a point on the map and press Save."}</li>`;
+      } catch (e) {
+        list.innerHTML = `<li class="mwai-rec-empty mwai-err-t">Mission log unavailable (${esc(e.message)}).</li>`;
+      }
+    }
+
+    /** Save the selected map point; used by the Save button and by chat ("save this location"). */
+    async saveLocation(fromChat) {
+      let rec = null, err = null;
+      this.ui.recsave.disabled = true;
+      try { rec = await this.missionLog.save(); } catch (e) { err = e; }
+      this.refreshSelection();
+      if (!this.ui.records.hidden) await this.loadRecords();
+      const done = rec ? `Saved “${rec.label}” to the mission log (${rec.result}).` : `Could not save: ${err.message}`;
+      if (fromChat) {
+        const msg = el("div", `mwai-msg mwai-bot${rec ? "" : " mwai-status-partial"}`, `<div class="mwai-text"><p>${esc(done)}</p></div>`);
+        if (rec) {
+          const row = el("div", "mwai-btnrow mwai-btnrow-flat");
+          const b = el("button", "mwai-btn", "Open mission log"); b.type = "button"; b.onclick = () => this.showRecords(true);
+          row.appendChild(b); msg.appendChild(row);
+        }
+        this.ui.log.appendChild(msg); this._scroll();
+      } else if (rec) {
+        const first = this.ui.reclist.querySelector("li[data-i]");
+        if (first) first.classList.add("mwai-rec-new");
+      } else {
+        this.ui.recsel.insertAdjacentHTML("beforeend", `<div class="mwai-err-t">${esc(done)}</div>`);
+      }
+    }
+
+    /** Mission-log requests handled on the page (no backend round trip): "save this location", "show the log". */
+    _logIntent(text) {
+      if (!this.missionLog) return null;
+      const t = text.toLowerCase();
+      if (/\b(plan|route|eva)\b/.test(t)) return null;                       // EVA-plan logging stays with the assistant backend
+      if (/\b(save|log|record|store|bookmark)\b/.test(t) && /\b(location|point|place|spot|stop|this|here|it|selected)\b/.test(t)) return "save";
+      if (/\b(show|open|view|see|list|display)\b/.test(t) && /\b(log|records?|saved|entries)\b/.test(t)) return "show";
+      return null;
+    }
+
     // ------------------------------------------------------------------ backend
     async _post(path, body) {
       const r = await fetch(this.api + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -186,7 +279,8 @@
         <p class="mwai-muted">I plan and compare routes on the Jezero elevation data, analyse terrain, estimate EVA time, and control the map.
         Every figure I give comes from a mission tool; I'll tell you when data is missing.</p></div>`;
       this.ui.log.appendChild(msg);
-      this._suggest(["Find me the best route to the delta", "Show me the Perseverance rover location", "Analyze the terrain around the habitat", "What can you do?"]);
+      this._suggest(["Find me the best route to the delta", "Show me the Perseverance rover location", "Analyze the terrain around the habitat",
+        ...(this.missionLog ? ["Save this location to the log", "Show the mission log"] : []), "What can you do?"]);
     }
 
     _suggest(list) {
@@ -227,8 +321,12 @@
       if (this.busy) return;
       if (!this.sessionId) { await this._connect(); if (!this.sessionId) return; }
       this.toggle(true);
+      if (!this.ui.records.hidden) this.showRecords(false);
       this.ui.log.appendChild(el("div", "mwai-msg mwai-user", `<div class="mwai-text">${esc(text)}</div>`));
       this._suggest([]);
+      const li = this._logIntent(text);
+      if (li === "save") { await this.saveLocation(true); return; }
+      if (li === "show") { this.showRecords(true); return; }
       await this._run(() => this._post("/api/assistant/chat", { session_id: this.sessionId, message: text, client_context: this.bridge ? this.bridge.getContext() : null }));
     }
 

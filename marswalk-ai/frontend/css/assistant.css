@@ -134,6 +134,29 @@
 .mwai-btn.mwai-primary { background: linear-gradient(180deg, #2a8db3, #1c6c8b); border-color: #4ab7e0; color: #fff; }
 .mwai-confirm { margin-top: 8px; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(242, 193, 78, .45); background: rgba(242, 193, 78, .06); }
 
+/* ---------- mission log view (records saved through the host page) */
+.mwai-gone { display: none !important; }
+.mwai-icon.mwai-logbtn { width: auto; padding: 0 9px; font-size: 12px; color: #cdeefb; border-color: rgba(94, 200, 242, .3); }
+.mwai-icon.mwai-logbtn.mwai-on { background: var(--mw-accent-d); border-color: var(--mw-accent); color: #fff; }
+.mwai-icon[hidden] { display: none; }
+.mwai-records { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.mwai-records[hidden] { display: none; }
+.mwai-rec-save { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--mw-line2); border-radius: 10px; background: linear-gradient(180deg, #121922, #0e141b); }
+.mwai-rec-sel { font-size: 12.5px; }
+.mwai-rec-search { padding: 9px 11px; border-radius: 9px; border: 1px solid var(--mw-line2); background: #0a0e14; color: var(--mw-text); font: inherit; }
+.mwai-rec-search:focus { outline: none; border-color: var(--mw-accent); }
+.mwai-rec-list { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 6px; scrollbar-width: thin; }
+.mwai-rec-list li[data-i] { padding: 8px 10px; border: 1px solid var(--mw-line); border-radius: 9px; background: #0d1218; cursor: pointer; font-size: 12.5px; }
+.mwai-rec-list li[data-i]:hover { border-color: var(--mw-accent); background: #101923; }
+.mwai-rec-h { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.mwai-rec-r { color: #c7cfda; margin-top: 2px; overflow-wrap: anywhere; }
+.mwai-rec-t { font-size: 11px; margin-top: 2px; }
+.mwai-rec-new { animation: mwai-recnew 2s ease-out; }
+@keyframes mwai-recnew { 0%, 30% { border-color: var(--mw-ok); background: rgba(74, 222, 128, .12); } }
+.mwai-rec-empty { padding: 10px 2px; font-size: 12.5px; }
+.mwai-rec-back { align-self: flex-start; }
+.mwai-btnrow-flat { padding: 6px 0 0; }
+
 /* ---------- suggestions + input */
 .mwai-suggest { display: flex; gap: 6px; padding: 6px 12px 0; overflow-x: auto; scrollbar-width: none; }
 .mwai-suggest:empty { display: none; }
