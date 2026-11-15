@@ -19,6 +19,19 @@
 .jr-pct { font: 700 18px/1 "JetBrains Mono", Consolas, monospace; color: #FF8A3D; min-width: 52px; text-align: right; }
 .jr-x { min-height: 28px; width: 28px; padding: 0; border-radius: 7px; background: transparent; border: 1px solid transparent; color: #9AA6B6; }
 .jr-x:hover { border-color: #2E3A49; color: #fff; }
+
+/* drag handle + minimised pill */
+.jr-head { cursor: grab; user-select: none; touch-action: none; }
+.jr-dragging, .jr-dragging .jr-head { cursor: grabbing; }
+.jr-dragging { box-shadow: 0 18px 44px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 138, 61, .35); }
+.jr-grip { color: #5C6878; font-size: 16px; line-height: 1; margin-right: -2px; }
+.jr-head:hover .jr-grip { color: #9AA6B6; }
+.jr-miniplay { display: none; color: #FF8A3D; }
+.jr-panel.jr-min { width: auto; max-width: calc(100vw - 32px); padding: 6px 8px 6px 10px; gap: 0; }
+.jr-panel.jr-min .jr-bar, .jr-panel.jr-min .jr-stats, .jr-panel.jr-min .jr-ctrls, .jr-panel.jr-min .jr-title small { display: none; }
+.jr-panel.jr-min .jr-title { flex: 0 1 auto; }
+.jr-panel.jr-min .jr-pct { font-size: 15px; min-width: 40px; }
+.jr-panel.jr-min .jr-miniplay { display: inline-block; }
 .jr-bar { position: relative; height: 8px; border-radius: 4px; background: #1E2631; cursor: pointer; }
 .jr-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 4px; background: linear-gradient(90deg, #C1440E, #FF8A3D); }
 .jr-knob { position: absolute; top: 50%; left: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
@@ -48,6 +61,11 @@
 .jr-start-row { display: flex; gap: 6px; }
 .jr-start-row select { flex: 1; min-height: 40px; border-radius: 8px; border: 1px solid #2E3A49; background: #0B0E13; color: #E6EAF0; padding: 0 8px; }
 .jr-start-row button { white-space: nowrap; background: #FF8A3D; color: #1a0d04; }
+
+/* "Save to log" feedback: the Mission log tab pulses once */
+.tab.flash { animation: tab-flash 1.6s ease-out; }
+@keyframes tab-flash { 0%, 40% { background: rgba(255, 138, 61, .35); border-color: #FF8A3D; } 100% { background: transparent; } }
+#saveHint { margin: 8px 0 0; line-height: 1.45; }
 
 /* keep the 3D "Explore Jezero" button out of the way while a journey runs */
 .journey-active .viewport-3d .cta { display: none; }

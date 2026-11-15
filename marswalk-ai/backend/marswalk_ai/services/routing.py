@@ -284,14 +284,25 @@ class RoutePlanner:
         dlat, dlon = offset_deg(sum(lats) / len(lats), 200)
         win = src.read_window(min(lats) - dlat, min(lons) - dlon, max(lats) + dlat, max(lons) + dlon, max_cells=MAX_CELLS)
         slope = horn_slope(win.elev, win.dx_m, win.dy_m)
+        # Elevation and slope come from the DEM cell under each sample, but the geometry keeps the exact
+        # position on the drawn line (fractional row/col), so a straight hand-drawn leg stays straight
+        # instead of becoming a cell-centre staircase. The last sample in each cell is kept, so corners survive.
+        def frac(v: float, axis: np.ndarray) -> float:
+            step = float(axis[1] - axis[0]) if len(axis) > 1 else 1.0
+            return float(np.clip((v - float(axis[0])) / step, 0, len(axis) - 1))
         cells: list[tuple[int, int]] = []
+        positions: list[tuple[float, float]] = []
         for (a_lat, a_lon), (b_lat, b_lon) in zip(points[:-1], points[1:]):
             n = max(2, int(ground_distance_m(a_lat, a_lon, b_lat, b_lon) / max(win.dy_m, 1)) + 1)
             for t in np.linspace(0, 1, n):
-                rc = win.cell_of(a_lat + (b_lat - a_lat) * t, a_lon + (b_lon - a_lon) * t)
+                la, lo = a_lat + (b_lat - a_lat) * t, a_lon + (b_lon - a_lon) * t
+                rc = win.cell_of(la, lo)
+                pos = (frac(la, win.lats), frac(lo, win.lons))
                 if not cells or cells[-1] != rc:
-                    cells.append(rc)
-        ev = evaluate_cells(win, slope, cells, max_slope, caution, self.k_suit, self.cost_ref_slope)
+                    cells.append(rc); positions.append(pos)
+                elif len(cells) > 1:          # the very first point stays the drawn start
+                    positions[-1] = pos
+        ev = evaluate_cells(win, slope, cells, max_slope, caution, self.k_suit, self.cost_ref_slope, positions=positions)
         ev["dataset"] = win.dataset
         return ev
 

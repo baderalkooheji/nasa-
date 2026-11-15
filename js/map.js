@@ -393,6 +393,7 @@ let selMarker = null;
 onState(["selected"], s => {
   const p = s.selected;
   $("btnSaveRecord").disabled = !p;
+  if ($("saveHint")) $("saveHint").hidden = !!p;
   if (selMarker) { map.removeLayer(selMarker); selMarker = null; }
   if (!p) { $("info").innerHTML = "Click the map or a stop."; $("photos").hidden = true; return; }
   if (p.kind === "point") selMarker = L.circleMarker([p.lat, p.lon], { radius: 7, color: "#fff", weight: 2, fillOpacity: 0 }).addTo(map);
@@ -672,14 +673,23 @@ async function loadEnvironment() {
 $("btnSaveRecord").onclick = async () => {
   const p = AppState.selected;
   if (!p) return;
+  // the record describes the selected point itself; the current route (if any) is added as context
+  const r = AppState.routeB || AppState.routeA, rName = AppState.routeB ? "Route B" : "Route A";
   const record = {
-    label: p.name || "Map point", lat: p.lat, lon: p.lon,
-    analysis_type: AppState.routeB || AppState.routeA ? "route" : "location",
-    result: AppState.routeB ? `Route B ${fmtKm(AppState.routeB.distance_m)}, max ${AppState.routeB.max_slope_deg}°` : `Elevation ${p.elevation_m ?? "n/a"} m, slope ${p.slope_deg ?? "n/a"}°`,
+    label: p.name || `Point ${fmtLL(p.lat, p.lon)}`, lat: p.lat, lon: p.lon,
+    analysis_type: p.kind === "point" ? "location" : "stop",
+    result: `Elevation ${p.elevation_m ?? "n/a"} m, slope ${p.slope_deg ?? "n/a"}°`
+      + (r ? ` · ${rName} ${fmtKm(r.distance_m)}, max ${r.max_slope_deg}°` : ""),
     elevation_m: p.elevation_m, slope_deg: p.slope_deg, dataset: p.source_dataset,
     status: p.data_available ? "complete" : "data unavailable",
   };
-  try { await api("/api/records", record); notify("done", `Saved "${record.label}" to the mission log.`); loadRecords(); }
+  try {
+    await api("/api/records", record);
+    notify("done", `Saved "${record.label}" — open the Mission log tab to see it.`);
+    loadRecords($("recordSearch").value);
+    const tab = document.querySelector('.tab[data-tab="records"]');   // point at where it went
+    if (tab) { tab.classList.add("flash"); setTimeout(() => tab.classList.remove("flash"), 1600); }
+  }
   catch (err) { notify("unavailable", err.status === 404 || err.status === 405 ? "Mission log not connected yet (backend /api/records not built)." : "Could not save: " + err.message); }
 };
 async function loadRecords(q = "") {

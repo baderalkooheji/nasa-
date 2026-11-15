@@ -187,10 +187,13 @@
   panel.setAttribute("aria-label", "Route journey");
   panel.hidden = true;
   panel.innerHTML = `
-    <div class="jr-row">
+    <div class="jr-row jr-head" data-ref="head" title="Drag to move · double-click to put back">
+      <span class="jr-grip" aria-hidden="true">⠿</span>
       <span class="jr-status" data-ref="status">Ready</span>
       <div class="jr-title"><b data-ref="name"></b><small data-ref="fromto"></small></div>
       <span class="jr-pct" data-ref="pct">0%</span>
+      <button type="button" class="jr-x jr-miniplay" data-ref="miniplay" title="Pause / resume" aria-label="Pause or resume">⏸</button>
+      <button type="button" class="jr-x" data-ref="min" title="Minimise panel" aria-label="Minimise panel">▾</button>
       <button type="button" class="jr-x" data-ref="close" title="Close journey" aria-label="Close journey">✕</button>
     </div>
     <div class="jr-bar" data-ref="bar" title="Click to jump to a point on the route"><div class="jr-fill" data-ref="fill"></div><div class="jr-knob" data-ref="knob"></div></div>
@@ -215,6 +218,56 @@
   const ui = {};
   panel.querySelectorAll("[data-ref]").forEach((el) => (ui[el.dataset.ref] = el));
   ui.play.onclick = () => api.toggle();
+  ui.miniplay.onclick = () => api.toggle();
+
+  // ---- minimise to a small pill, and drag the panel anywhere (both remembered in this browser)
+  const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+                  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked */ } } };
+  function setMin(min) {
+    panel.classList.toggle("jr-min", min);
+    ui.min.textContent = min ? "▴" : "▾";
+    ui.min.title = min ? "Expand panel" : "Minimise panel";
+    ui.min.setAttribute("aria-label", ui.min.title);
+    store.set("marswalk.journey.min", min);
+    keepInView();
+  }
+  ui.min.onclick = () => setMin(!panel.classList.contains("jr-min"));
+  function placeAt(x, y) {
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    x = Math.max(8, Math.min(innerWidth - w - 8, x)); y = Math.max(8, Math.min(innerHeight - h - 8, y));
+    Object.assign(panel.style, { left: x + "px", top: y + "px", bottom: "auto", transform: "none" });
+    return { x, y };
+  }
+  function keepInView() {
+    if (!panel.style.top || panel.hidden) return;
+    const r = panel.getBoundingClientRect();
+    placeAt(r.left, r.top);
+  }
+  function resetPlace() { Object.assign(panel.style, { left: "", top: "", bottom: "", transform: "" }); store.set("marswalk.journey.pos", null); }
+  let drag = null;
+  ui.head.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target.closest("button")) return;
+    const r = panel.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    ui.head.setPointerCapture(e.pointerId);
+    panel.classList.add("jr-dragging");
+  });
+  ui.head.addEventListener("pointermove", (e) => { if (drag) placeAt(e.clientX - drag.dx, e.clientY - drag.dy); });
+  const endDrag = () => {
+    if (!drag) return;
+    drag = null; panel.classList.remove("jr-dragging");
+    const r = panel.getBoundingClientRect();
+    store.set("marswalk.journey.pos", { x: r.left, y: r.top });
+  };
+  ui.head.addEventListener("pointerup", endDrag);
+  ui.head.addEventListener("pointercancel", endDrag);
+  ui.head.addEventListener("dblclick", (e) => { if (!e.target.closest("button")) resetPlace(); });
+  addEventListener("resize", keepInView);
+  if (store.get("marswalk.journey.min")) panel.classList.add("jr-min"), (ui.min.textContent = "▴");
+  on("start", () => requestAnimationFrame(() => {             // restore the user's spot once the panel has a size
+    const pos = store.get("marswalk.journey.pos");
+    if (pos) placeAt(pos.x, pos.y);
+  }));
   ui.stop.onclick = () => api.stop();
   ui.restart.onclick = () => api.restart();
   ui.close.onclick = () => api.close();
@@ -249,6 +302,7 @@
     ui.pos.textContent = `${p.lat.toFixed(5)}°N ${p.lon.toFixed(5)}°E`;
     ui.play.textContent = st === "running" ? "⏸ Pause" : st === "completed" ? "↺ Replay" : "▶ Resume";
     if (st === "stopped") ui.play.textContent = "▶ Start";
+    ui.miniplay.textContent = st === "running" ? "⏸" : "▶";
     ui.speed.value = String(J.speed);
     ui.cam.hidden = $id("view3d").hidden;                      // camera modes only matter in 3D
     ui.cam.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.cam === J.cam3d));

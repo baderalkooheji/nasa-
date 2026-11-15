@@ -179,7 +179,8 @@ function wireControls() {
 
   // Start with panels collapsed on narrow screens so the globe stays visible.
   if (window.matchMedia("(max-width: 760px)").matches) {
-    document.querySelectorAll(".panel-toggle").forEach((b) => b.click());
+    // only those still open: something else (e.g. a route journey) may already have folded them
+    document.querySelectorAll(".panel-toggle").forEach((b) => { if (!$(b.dataset.target)?.classList.contains("is-collapsed")) b.click(); });
   }
 }
 
