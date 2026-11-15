@@ -52,7 +52,8 @@ function syncTo3D(changed) {
 
   if (changed.includes("selected") && SharedState.selectedPoint) {
     const p = SharedState.selectedPoint;
-    if (!samePoint(p, lastGlobePick)) {
+    // during a route journey the journey camera owns the 3D view (js/journey3d.js)
+    if (!samePoint(p, lastGlobePick) && !document.body.classList.contains("journey-active")) {
       // select:false so the globe does not emit "select" again (no 2D ↔ 3D ping-pong)
       Mars3D.goToLocation(p.lat, p.lon, { altitude: 4000, tilt: 55, select: false }).catch((err) => console.warn("[integration] goToLocation", err));
     }
@@ -122,6 +123,7 @@ function setView(view) {
   $("view3d").hidden = is2d;
   $("mode2d").classList.toggle("active", is2d);
   $("mode3d").classList.toggle("active", !is2d);
+  window.dispatchEvent(new CustomEvent("marswalk:view", { detail: { view } }));   // e.g. the route journey follows the switch
 
   if (is2d) {
     setTimeout(() => { if (window.map && window.map.invalidateSize) window.map.invalidateSize(); }, 50);

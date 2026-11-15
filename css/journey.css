@@ -1,0 +1,54 @@
+/* Route journey: mission control panel, 2D marker, Route-tab start box. Marswalk colours. */
+.jr-panel {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 1700;
+  width: min(640px, calc(100vw - 32px)); padding: 10px 14px 12px;
+  background: rgba(15, 20, 27, 0.94); border: 1px solid #2E3A49; border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 138, 61, .08); backdrop-filter: blur(8px);
+  color: #E6EAF0; font-size: 13px; display: flex; flex-direction: column; gap: 8px;
+}
+.jr-panel[hidden] { display: none !important; }
+.jr-row { display: flex; align-items: center; gap: 10px; }
+.jr-title { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.25; }
+.jr-title b { font-size: 13.5px; }
+.jr-title small { color: #9AA6B6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jr-status { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid #2E3A49; color: #C2CBD6; white-space: nowrap; }
+.jr-status[data-state="running"] { color: #0B0E13; background: #FF8A3D; border-color: #FF8A3D; }
+.jr-status[data-state="paused"] { color: #F2C14E; border-color: rgba(242, 193, 78, .6); }
+.jr-status[data-state="completed"] { color: #0B0E13; background: #4ADE80; border-color: #4ADE80; }
+.jr-pct { font: 700 18px/1 "JetBrains Mono", Consolas, monospace; color: #FF8A3D; min-width: 52px; text-align: right; }
+.jr-x { min-height: 28px; width: 28px; padding: 0; border-radius: 7px; background: transparent; border: 1px solid transparent; color: #9AA6B6; }
+.jr-x:hover { border-color: #2E3A49; color: #fff; }
+.jr-bar { position: relative; height: 8px; border-radius: 4px; background: #1E2631; cursor: pointer; }
+.jr-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 4px; background: linear-gradient(90deg, #C1440E, #FF8A3D); }
+.jr-knob { position: absolute; top: 50%; left: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+  background: #fff; border: 3px solid #FF8A3D; box-shadow: 0 0 8px rgba(255, 138, 61, .7); }
+.jr-stats { justify-content: space-between; gap: 12px; }
+.jr-stats span { display: flex; flex-direction: column; min-width: 0; }
+.jr-stats small { color: #9AA6B6; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; }
+.jr-stats b { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.jr-ctrls { flex-wrap: wrap; gap: 6px; }
+.jr-btn { min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; }
+.jr-btn.jr-primary { background: #FF8A3D; color: #1a0d04; border-color: #FF8A3D; font-weight: 700; min-width: 96px; }
+.jr-speed { display: flex; align-items: center; gap: 6px; color: #9AA6B6; font-size: 12px; margin-left: 4px; }
+.jr-speed select { min-height: 32px; border-radius: 8px; border: 1px solid #2E3A49; background: #0B0E13; color: #E6EAF0; padding: 0 6px; }
+.jr-cam { display: flex; margin-left: auto; border: 1px solid #2E3A49; border-radius: 8px; overflow: hidden; }
+.jr-cam[hidden] { display: none !important; }
+.jr-cam button { min-height: 30px; border: 0; border-radius: 0; background: transparent; font-size: 12px; padding: 0 10px; color: #C2CBD6; }
+.jr-cam button.on { background: rgba(94, 200, 242, .18); color: #5EC8F2; font-weight: 600; }
+
+/* 2D moving marker: pulsing halo + direction arrow */
+.jr-marker { position: relative; width: 34px; height: 34px; display: grid; place-items: center; }
+.jr-pulse { position: absolute; inset: 4px; border-radius: 50%; background: rgba(255, 138, 61, .35); animation: jr-pulse 1.6s ease-out infinite; }
+.jr-arrow { position: relative; fill: #FF8A3D; stroke: #0B0E13; stroke-width: 1.6; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .7)); transition: transform .15s linear; }
+@keyframes jr-pulse { from { transform: scale(.6); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+
+/* Route tab start box */
+.jr-start { margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
+.jr-start-row { display: flex; gap: 6px; }
+.jr-start-row select { flex: 1; min-height: 40px; border-radius: 8px; border: 1px solid #2E3A49; background: #0B0E13; color: #E6EAF0; padding: 0 8px; }
+.jr-start-row button { white-space: nowrap; background: #FF8A3D; color: #1a0d04; }
+
+/* keep the 3D "Explore Jezero" button out of the way while a journey runs */
+.journey-active .viewport-3d .cta { display: none; }
+@media (prefers-reduced-motion: reduce) { .jr-pulse { animation: none; } }
