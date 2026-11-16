@@ -218,6 +218,19 @@ class KnowledgeBase:
         if not dir_path.exists():
             logger.warning("Directory not found: %s", dir_path)
             return []
+        # documents whose file was removed from the folder leave the index too
+        db = SessionLocal()
+        try:
+            root = str(dir_path.resolve())
+            for d in db.query(Document).all():
+                if d.filepath.startswith(root) and not Path(d.filepath).exists():
+                    self._delete_vectors(d)
+                    db.delete(d)
+                    self._index = None
+                    logger.info("Removed %s from the knowledge base (file deleted)", d.filename)
+            db.commit()
+        finally:
+            db.close()
         out = []
         for f in sorted(dir_path.glob(pattern)):
             if f.suffix.lower() in SUPPORTED and f.name.lower() != "readme.md":

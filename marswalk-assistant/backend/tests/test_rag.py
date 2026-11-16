@@ -17,6 +17,7 @@ QUESTIONS = [
     ("Can we find water ice anywhere?", "mars_kb_03_water.md", "ice"),
     ("Why is water difficult to obtain?", "mars_kb_03_water.md", "unstable"),
     ("Is Mars gravity dangerous?", "mars_kb_06_communications_health.md", "3.71"),
+    ("can i get the data analysis in 3D", "marswalk_app_guide.md", "terrain"),
 ]
 
 
@@ -25,7 +26,7 @@ async def ingested():
     from models import init_db
     init_db()
     docs = await knowledge_base.ingest_directory()
-    assert len(docs) >= 15
+    assert len(docs) >= 14
     return docs
 
 

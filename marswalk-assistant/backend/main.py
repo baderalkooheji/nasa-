@@ -232,10 +232,32 @@ def tools_allowed(request: ChatRequest) -> bool:
 _LAYER_WORDS = r"(hirise|mola|themis|viking|ctx|hillshade|slope classes|slope layer|infrared|colour mosaic|color mosaic|elevation layer)"
 
 
+def _terrain_request(t: str) -> Optional[Dict[str, Any]]:
+    """'analyse the terrain at the delta front', 'data analysis in 3D', 'analyse this point' → analyse_terrain arguments."""
+    if not re.search(r"\banaly[sz]\w*\b", t) or re.search(r"\broutes?\b|\bpath\b", t):
+        return None
+    m = re.search(r"\b(?:at|of|around|near|for)\s+(?:the\s+)?(.+?)(?:\s+(?:in|on|with|within)\b|[.?!]|$)", t)
+    place = m.group(1).strip() if m else ""
+    if not place or re.fullmatch(r"(this|here|it|that|selected( point| location)?|(this|the|my) (point|location|place|spot|area|selection)"
+                                 r"|terrain|data|3d|the 3d( globe| view)?|globe)", place):
+        place = "selected"
+    args: Dict[str, Any] = {"location": place}
+    m = re.search(r"\b(\d{2,4})\s*(?:m|metres|meters)\b", t)
+    if m:
+        args["radius_m"] = int(m.group(1))
+    return args
+
+
 def _command_routes(t: str) -> List[tuple]:
     """Clear UI / log commands with arguments taken from the request (the actions are confirmed by the page)."""
     import re
     out = []
+    ta = _terrain_request(t)
+    if ta:
+        out.append(("analyse_terrain", ta))
+        if re.search(r"\b(3d|globe)\b", t):                # "analysis in 3D": show it on the globe as well
+            out.append(("navigate_application", {"target": "3d"}))
+            return out
     m = re.search(r"\b(show|hide|turn on|turn off|enable|disable|display|remove|add)\b.*?\b" + _LAYER_WORDS, t)
     if m:
         out.append(("change_map_layer", {"layer": m.group(2), "visible": m.group(1) not in ("hide", "turn off", "disable", "remove")}))
@@ -302,7 +324,8 @@ async def _preroute(message: str) -> List[tuple]:
 # Requests answered directly from the tool result, without the model: their results need no interpretation, and a small model
 # only risks garbling them (comparisons) while adding 20-80 s on a CPU.
 DIRECT = {"change_map_layer", "save_to_mission_log", "zoom_map", "navigate_application", "start_route_journey", "compare_routes",
-          "get_mission_log", "retrieve_mission_information", "estimate_eva", "analyse_environment", "generate_route", "choose_destination"}
+          "get_mission_log", "retrieve_mission_information", "estimate_eva", "analyse_environment", "generate_route", "choose_destination",
+          "analyse_terrain"}
 
 
 async def _choose_destination() -> Dict[str, Any]:
@@ -329,6 +352,21 @@ def _direct_answer(executed: List[Dict[str, Any]]) -> str:
         d = e.get("data") or {}
         if not e["success"]:
             lines.append(f"Could not do that: {e['error']}")
+        elif e["name"] == "analyse_terrain":
+            if d.get("data_available") is False:
+                lines.append(f"No elevation data covers {d.get('place')}: {d.get('reason')}")
+            else:
+                th = d.get("thresholds") or {}
+                rng = d.get("elevation_range_m") or [None, None]
+                lines.append(f"Terrain at {d.get('place')} ({d.get('lat')}°N {d.get('lon')}°E, within {d.get('radius_m'):g} m), from the "
+                             f"{d.get('source_dataset')}:")
+                lines.append(f"• Elevation {d.get('elevation_m')} m (measured, relative to the Mars areoid); range {rng[0]} to {rng[1]} m, "
+                             f"relief {d.get('relief_m')} m.")
+                lines.append(f"• Slope at the point {d.get('slope_at_point_deg')}°; mean {d.get('slope_mean_deg')}°, 90th percentile "
+                             f"{d.get('slope_p90_deg')}°, max {d.get('slope_max_deg')}° (calculated, Horn 3×3 on the DEM).")
+                lines.append(f"• {d.get('area_above_caution_pct')}% of the area is steeper than the {th.get('caution_slope_deg')}° caution "
+                             f"slope and {d.get('area_above_limit_pct')}% steeper than the {th.get('max_slope_deg')}° limit (project-defined).")
+                lines.append(f"• Difficulty: {d.get('difficulty')} ({d.get('difficulty_basis')}). Boulders and small ledges are not resolved.")
         elif e["name"] == "choose_destination":
             lines.append("Where should the route go? Candidate sites (real Perseverance positions):")
             lines += [f"• {s['id']}: {s['name']} – {s.get('reason') or ''}" for s in d.get("sites", [])]

@@ -65,7 +65,7 @@ def test_tool_results_go_back_to_the_model_and_actions_to_the_page(client, monke
 def test_empty_model_text_falls_back_to_tool_numbers(client, monkeypatch):
     monkeypatch.setattr(main, "llm_client", ScriptedLLM([ToolCall(name="analyse_terrain", arguments={"location": "selected"}), ""]))
     r = client.post("/chat", json={"message": "analyse this", "client_context": PAGE}).json()
-    assert "-2525.3 m (DEM)" in r["message"]
+    assert "Elevation -2525.3 m (measured" in r["message"]
 
 
 def test_ollama_down_is_reported_plainly(client, monkeypatch):
@@ -89,7 +89,7 @@ def test_health_and_tools_endpoints(client, monkeypatch):
     tools = client.get("/tools").json()
     assert len(tools) >= 17
     h = client.get("/health").json()
-    assert h["knowledge_documents"] >= 15 and h["marswalk_backend"] is True
+    assert h["knowledge_documents"] >= 14 and h["marswalk_backend"] is True
 
 
 def test_knowledge_is_retrieved_before_the_model_answers(client, monkeypatch):
@@ -206,3 +206,17 @@ def test_route_requests_run_the_planner_directly(client, monkeypatch):
     assert "Planned 3 route options" in r["message"] and "Recommended: R2" in r["message"]
     r = client.post("/chat", json={"message": "generate me a new route exploration site", "client_context": PAGE}).json()
     assert "Where should the route go?" in r["message"] and "Delta front" in r["message"] and not r["actions"]
+
+
+def test_terrain_analysis_requests_run_the_tool(client, monkeypatch):
+    silent = ScriptedLLM([])
+    monkeypatch.setattr(main, "llm_client", silent)
+    r = client.post("/chat", json={"message": "can i get the data analysis will 3D", "client_context": PAGE}).json()
+    names = [c["name"] for c in r["tool_calls"]]
+    assert names == ["analyse_terrain", "navigate_application"] and not silent.sent
+    assert "Elevation -2525.3 m (measured" in r["message"] and r["actions"][0]["target"] == "3d"
+    r = client.post("/chat", json={"message": "analyse the terrain at stop 3 within 300 m", "client_context": PAGE}).json()
+    assert r["tool_calls"][0]["arguments"] == {"location": "stop 3", "radius_m": 300}
+    nosel = {**PAGE, "selected": None}
+    r = client.post("/chat", json={"message": "analyse this point", "client_context": nosel}).json()
+    assert "No point is selected" in r["message"]

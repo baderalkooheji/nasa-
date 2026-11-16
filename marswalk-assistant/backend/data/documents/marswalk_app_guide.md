@@ -20,6 +20,16 @@ elevations are metres relative to the Mars areoid.
 Use the "2D Map" and "3D Globe" buttons at the top of the page. Routes, the selected point and a running journey are shared by both
 views. In 3D, "Global Mars" and "Jezero Crater" (or "Explore Jezero") fly the camera between the whole planet and the crater.
 
+## Can I get the terrain data analysis in 3D? (3D globe analysis)
+Yes. Switch to "3D Globe" (or ask the assistant "open the 3D globe"). In 3D, click any point on the surface: the "Details" panel on
+the right shows its latitude/longitude, the elevation from every elevation model that covers the point (HiRISE DTM, CTX DEM, global
+MOLA/HRSC), the active data sources and the camera altitude, heading and tilt. The terrain is shown without vertical exaggeration. A
+point clicked on the globe is also selected in the 2D planner, so you can then ask the assistant "analyse the terrain at the selected
+point" for elevation, relief, slope statistics and the difficulty class within a radius. Routes A and B are draped on the 3D terrain,
+and the route journey has an Immersive ground-level camera that follows the rover over the real terrain. The "Layers" panel on the
+left switches the basemap, global elevation, CTX terrain and orthomosaic, HiRISE terrain and imagery, the Jezero marker and the data
+coverage outlines.
+
 ## How to select a location and see its elevation
 Click anywhere on the 2D map (or the 3D globe). The "Selected location" panel shows the latitude/longitude, the DEM elevation and the
 calculated slope at that point. Hovering the 2D map shows a live x / y / z readout (longitude, latitude, elevation).

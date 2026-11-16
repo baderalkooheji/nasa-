@@ -340,6 +340,7 @@
         throw new Error((j && j.detail) || `HTTP ${r.status}`);
       }
       state.conv = j.conversation_id; store.set("mwx.conversation", j.conversation_id);
+      if (!state.health) health();                         // it answered, so it is online: clear a stale "offline"
       wait.remove();
       const m = addMsg("ai", j.message || "(no answer)");
       if (j.metadata && j.metadata.error) m.classList.add("mwx-warn-msg");
@@ -411,5 +412,7 @@
   if (oldDrawer) oldDrawer.hidden = true;
 
   window.marswalkAssistant = { ask, toggle: ui.toggle, showRecords: ui.showRecords, getContext, actions: ACTIONS };
-  health(); restore(); setInterval(health, 30000);
+  // health: every 30 s while online, every 5 s while offline (so a restarted server is picked up quickly)
+  const poll = async () => { await health(); setTimeout(poll, state.health ? 30000 : 5000); };
+  poll(); restore();
 })();
